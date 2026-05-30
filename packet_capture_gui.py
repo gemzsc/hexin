@@ -408,7 +408,7 @@ class PacketCaptureGUI:
 
         self.packets = []           # 已捕获的解析信息列表
         self.scapy_packets = []     # 原始 scapy 包列表（用于 PCAP 保存）
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.sniffer = PacketSniffer(self._on_packet)
         self.capture_filter = tk.StringVar(value="全部")
         self.status_text = tk.StringVar(value="就绪 — 点击 ▶ 开始捕获")
