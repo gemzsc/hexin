@@ -625,6 +625,7 @@ class PacketCaptureGUI:
 
     def _on_packet(self, info):
         """收到数据包时的回调（来自捕获线程，通过 after 切回主线程）"""
+        truncate = False
         with self._lock:
             self.packets.append(info)
             self.scapy_packets.append(info.get("scapy_pkt"))
@@ -632,7 +633,10 @@ class PacketCaptureGUI:
             if len(self.packets) > 20000:
                 self.packets = self.packets[-10000:]
                 self.scapy_packets = self.scapy_packets[-10000:]
+                truncate = True
         self.root.after(0, self._add_packet_to_list, info)
+        if truncate:
+            self.root.after(0, self._prune_treeview_rows)
 
     def _add_packet_to_list(self, info):
         """在主线程中向 Treeview 中添加一行"""
@@ -1023,6 +1027,19 @@ class PacketCaptureGUI:
             self.status_text.set("已清空所有数据包")
 
     # ── 辅助方法 ────────────────────────────────────
+
+    def _prune_treeview_rows(self):
+        """截断后同步清理 Treeview 中已不在 self.packets 的旧行"""
+        with self._lock:
+            existing_ids = {pkt.get("id") for pkt in self.packets}
+        for child in list(self.tree.get_children()):
+            values = self.tree.item(child, "values")
+            if values:
+                try:
+                    if int(values[0]) not in existing_ids:
+                        self.tree.delete(child)
+                except (ValueError, IndexError):
+                    pass
 
     def _refresh_list(self):
         self.tree.delete(*self.tree.get_children())
