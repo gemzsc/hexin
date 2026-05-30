@@ -677,7 +677,7 @@ class PacketCaptureGUI:
         if filt == "SSH(22)" and proto == "TCP":
             return (info.get("tcp_sport") == 22 or
                     info.get("tcp_dport") == 22)
-        return True
+        return False
 
     # ── 详情与十六进制显示 ────────────────────────────
 
