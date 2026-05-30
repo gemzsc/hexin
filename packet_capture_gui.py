@@ -846,6 +846,9 @@ class PacketCaptureGUI:
 
     def save_pcap(self):
         """将捕获的原始 scapy 包保存为 PCAP 格式"""
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法保存 PCAP。\n请执行: pip install scapy")
+            return
         if not self.scapy_packets:
             if self.packets:
                 # 场景：数据来自 JSON 加载，没有原始 scapy 包
@@ -882,6 +885,9 @@ class PacketCaptureGUI:
 
     def load_pcap(self):
         """从 PCAP 文件加载数据包"""
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法加载 PCAP。\n请执行: pip install scapy")
+            return
         file_path = filedialog.askopenfilename(
             title="加载 PCAP 文件",
             filetypes=[("PCAP/PCAPNG 文件", "*.pcap *.pcapng *.cap"),
@@ -973,6 +979,9 @@ class PacketCaptureGUI:
     # ── 示例数据 ────────────────────────────────────
 
     def generate_samples(self):
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法生成示例数据。\n请执行: pip install scapy")
+            return
         if self.packets and not messagebox.askyesno(
             "确认", "当前列表已有数据，新示例将追加到末尾。是否继续？"):
             return
