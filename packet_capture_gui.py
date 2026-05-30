@@ -685,10 +685,14 @@ class PacketCaptureGUI:
         selection = self.tree.selection()
         if not selection:
             return
-        idx = self.tree.index(selection[0])
-        if idx >= len(self.packets):
+        values = self.tree.item(selection[0], "values")
+        if not values:
             return
-        self._show_detail(self.packets[idx])
+        packet_id = int(values[0])
+        for pkt in self.packets:
+            if pkt.get("id") == packet_id:
+                self._show_detail(pkt)
+                return
 
     def _show_detail(self, info):
         """在详情面板中以分层树形式展示协议字段"""
