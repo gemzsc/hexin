@@ -408,6 +408,7 @@ class PacketCaptureGUI:
 
         self.packets = []           # 已捕获的解析信息列表
         self.scapy_packets = []     # 原始 scapy 包列表（用于 PCAP 保存）
+        self._lock = threading.Lock()
         self.sniffer = PacketSniffer(self._on_packet)
         self.capture_filter = tk.StringVar(value="全部")
         self.status_text = tk.StringVar(value="就绪 — 点击 ▶ 开始捕获")
@@ -613,8 +614,10 @@ class PacketCaptureGUI:
         if not self.sniffer.running:
             return
         self.sniffer.stop()
+        with self._lock:
+            count = len(self.packets)
         self.status_text.set(
-            f"■ 捕获已停止，共 {len(self.packets)} 个数据包")
+            f"■ 捕获已停止，共 {count} 个数据包")
         self.btn_start.config(state="normal")
         self.btn_stop.config(state="disabled")
 
@@ -622,12 +625,13 @@ class PacketCaptureGUI:
 
     def _on_packet(self, info):
         """收到数据包时的回调（来自捕获线程，通过 after 切回主线程）"""
-        self.packets.append(info)
-        self.scapy_packets.append(info.get("scapy_pkt"))
-        # 内存保护：超过 20000 时截断
-        if len(self.packets) > 20000:
-            self.packets = self.packets[-10000:]
-            self.scapy_packets = self.scapy_packets[-10000:]
+        with self._lock:
+            self.packets.append(info)
+            self.scapy_packets.append(info.get("scapy_pkt"))
+            # 内存保护：超过 20000 时截断
+            if len(self.packets) > 20000:
+                self.packets = self.packets[-10000:]
+                self.scapy_packets = self.scapy_packets[-10000:]
         self.root.after(0, self._add_packet_to_list, info)
 
     def _add_packet_to_list(self, info):
@@ -689,10 +693,11 @@ class PacketCaptureGUI:
         if not values:
             return
         packet_id = int(values[0])
-        for pkt in self.packets:
-            if pkt.get("id") == packet_id:
-                self._show_detail(pkt)
-                return
+        with self._lock:
+            for pkt in self.packets:
+                if pkt.get("id") == packet_id:
+                    self._show_detail(pkt)
+                    return
 
     def _show_detail(self, info):
         """在详情面板中以分层树形式展示协议字段"""
@@ -861,12 +866,15 @@ class PacketCaptureGUI:
             return
 
         try:
-            wrpcap(file_path, self.scapy_packets)
+            with self._lock:
+                pkts_to_save = list(self.scapy_packets)
+            wrpcap(file_path, pkts_to_save)
+            count = len(pkts_to_save)
             self.status_text.set(
-                f"已保存 {len(self.scapy_packets)} 个数据包到: "
+                f"已保存 {count} 个数据包到: "
                 f"{os.path.basename(file_path)} (PCAP 格式)")
             messagebox.showinfo("保存成功",
-                                f"成功保存 {len(self.scapy_packets)} 个数据包\n"
+                                f"成功保存 {count} 个数据包\n"
                                 f"文件: {file_path}\n"
                                 f"可用 Wireshark 直接打开查看。")
         except Exception as e:
@@ -888,7 +896,8 @@ class PacketCaptureGUI:
                 messagebox.showinfo("提示", "文件中没有数据包")
                 return
 
-            start_id = len(self.packets)
+            with self._lock:
+                start_id = len(self.packets)
             for i, pkt in enumerate(scapy_pkts):
                 info = PacketParser.parse_scapy_packet(pkt)
                 info["id"] = start_id + i + 1
@@ -896,8 +905,9 @@ class PacketCaptureGUI:
                 info["timestamp"] = datetime.fromtimestamp(float(ts)).strftime(
                     "%H:%M:%S.%f")[:-3]
                 info["scapy_pkt"] = pkt
-                self.packets.append(info)
-                self.scapy_packets.append(pkt)
+                with self._lock:
+                    self.packets.append(info)
+                    self.scapy_packets.append(pkt)
 
             self._refresh_list()
             self.status_text.set(
@@ -969,15 +979,17 @@ class PacketCaptureGUI:
 
         try:
             samples = PacketParser.generate_sample_packets(25)
-            start_id = len(self.packets)
+            with self._lock:
+                start_id = len(self.packets)
             for i, pkt in enumerate(samples):
                 info = PacketParser.parse_scapy_packet(pkt)
                 info["id"] = start_id + i + 1
                 info["timestamp"] = datetime.now().strftime(
                     "%H:%M:%S.%f")[:-3]
                 info["scapy_pkt"] = pkt
-                self.packets.append(info)
-                self.scapy_packets.append(pkt)
+                with self._lock:
+                    self.packets.append(info)
+                    self.scapy_packets.append(pkt)
 
             self._refresh_list()
             self.status_text.set(
@@ -990,8 +1002,9 @@ class PacketCaptureGUI:
             return
         if messagebox.askyesno("确认",
                                f"确定清空全部 {len(self.packets)} 个数据包？"):
-            self.packets.clear()
-            self.scapy_packets.clear()
+            with self._lock:
+                self.packets.clear()
+                self.scapy_packets.clear()
             self.tree.delete(*self.tree.get_children())
             self.detail_tree.delete(*self.detail_tree.get_children())
             self.hex_text.config(state="normal")
@@ -1004,11 +1017,13 @@ class PacketCaptureGUI:
 
     def _refresh_list(self):
         self.tree.delete(*self.tree.get_children())
-        for info in self.packets:
-            self._add_packet_to_list(info)
+        with self._lock:
+            for info in self.packets:
+                self._add_packet_to_list(info)
 
     def _update_stats(self):
-        count = len(self.packets)
+        with self._lock:
+            count = len(self.packets)
         self.lbl_stats.config(text=f"数据包: {count}")
         self.lbl_count.config(text=f"共 {count} 个数据包")
 
