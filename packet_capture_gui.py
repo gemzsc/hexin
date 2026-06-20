@@ -1,7 +1,4 @@
 """
-局域网数据包捕获程序设计 — 课题18
-基于 Python + Scapy + Tkinter 的局域网数据包捕获与分析工具
-
 功能：
   1. 基于 scapy + Npcap 捕获以太网帧级数据包
   2. 解析 Ethernet / ARP / IP / TCP / UDP / ICMP 协议头部
@@ -16,14 +13,12 @@
   - 安装 Npcap（https://npcap.com/），实时捕获需管理员权限运行
 """
 
-import struct
+import os
+import random
 import threading
 import time
-import os
-import sys
-import random
-from datetime import datetime
 import tkinter as tk
+from datetime import datetime
 from tkinter import ttk, messagebox, filedialog, scrolledtext
 
 # ─── scapy 导入 ────────────────────────────────────────
@@ -389,9 +384,7 @@ class PacketSniffer:
         self.running = False
         if self._sniffer:
             try:
-                self._sniffer.stop(join=False)
-                if self._sniffer.thread and self._sniffer.thread.is_alive():
-                    self._sniffer.thread.join(timeout=2.0)
+                self._sniffer.stop()
             except Exception:
                 pass
             self._sniffer = None
@@ -410,16 +403,11 @@ class PacketCaptureGUI:
 
         self.packets = []           # 已捕获的解析信息列表
         self.scapy_packets = []     # 原始 scapy 包列表（用于 PCAP 保存）
+        self._lock = threading.RLock()
         self.sniffer = PacketSniffer(self._on_packet)
         self.capture_filter = tk.StringVar(value="全部")
         self.status_text = tk.StringVar(value="就绪 — 点击 ▶ 开始捕获")
         self._sort_order = {}       # 列排序方向记录
-
-        # 批量 UI 更新 — 防止 after(0) 队列溢出
-        self._pending_infos = []       # 待插入 Treeview 的包缓冲
-        self._batch_timer_id = None    # 批量刷新定时器 ID
-        self._packet_lock = threading.Lock()  # 保护 packets / scapy_packets
-        self._shutting_down = False    # 关闭中标志，阻止回调操作已销毁控件
 
         self._build_menu()
         self._build_toolbar()
@@ -608,7 +596,6 @@ class PacketCaptureGUI:
     def start_capture(self):
         if self.sniffer.running:
             return
-        self._pending_infos.clear()
         success, msg = self.sniffer.start()
         if success:
             self.status_text.set("● 正在捕获数据包...")
@@ -622,65 +609,32 @@ class PacketCaptureGUI:
         if not self.sniffer.running:
             return
         self.sniffer.stop()
-        # 刷新最后一批待处理数据包
-        if self._pending_infos:
-            self._flush_batch()
+        with self._lock:
+            count = len(self.packets)
         self.status_text.set(
-            f"■ 捕获已停止，共 {len(self.packets)} 个数据包")
+            f"■ 捕获已停止，共 {count} 个数据包")
         self.btn_start.config(state="normal")
         self.btn_stop.config(state="disabled")
 
     # ── 数据包回调 ──────────────────────────────────
 
     def _on_packet(self, info):
-        """收到数据包时的回调（来自捕获线程，通过批量定时器切回主线程）"""
-        pkt = info.pop("scapy_pkt", None)  # 从 info 中移除，减轻闭包内存压力
-        with self._packet_lock:
+        """收到数据包时的回调（来自捕获线程，通过 after 切回主线程）"""
+        truncate = False
+        with self._lock:
             self.packets.append(info)
-            if pkt is not None:
-                self.scapy_packets.append(pkt)
-            # 存储 scapy 包在 info 中的真实索引
-            info["_idx"] = len(self.packets) - 1
+            self.scapy_packets.append(info.get("scapy_pkt"))
             # 内存保护：超过 20000 时截断
             if len(self.packets) > 20000:
                 self.packets = self.packets[-10000:]
                 self.scapy_packets = self.scapy_packets[-10000:]
-                self.root.after(0, self._rebuild_treeview)
-        self._pending_infos.append(info)
-        if self._batch_timer_id is None:
-            self._batch_timer_id = self.root.after(200, self._flush_batch)
+                truncate = True
+        self.root.after(0, self._add_packet_to_list, info)
+        if truncate:
+            self.root.after(0, self._prune_treeview_rows)
 
-    def _flush_batch(self):
-        """在主线程中批量插入待处理数据包（每 200ms 触发一次）"""
-        self._batch_timer_id = None
-        if self._shutting_down:
-            return
-        batch = self._pending_infos
-        self._pending_infos = []
-        filt = self.capture_filter.get()
-        for info in batch:
-            if not self._match_filter(info.get("proto_name", "?"), info, filt):
-                continue
-            self._insert_one_row(info)
-        children = self.tree.get_children()
-        if children:
-            self.tree.see(children[-1])
-        self._update_stats()
-
-    def _rebuild_treeview(self):
-        """截断后完整重建 Treeview（同步到 self.packets）"""
-        with self._packet_lock:
-            packets_snapshot = list(self.packets)
-        self.tree.delete(*self.tree.get_children())
-        filt = self.capture_filter.get()
-        for info in packets_snapshot:
-            if not self._match_filter(info.get("proto_name", "?"), info, filt):
-                continue
-            self._insert_one_row(info)
-        self._update_stats()
-
-    def _insert_one_row(self, info):
-        """向 Treeview 插入一行，并将数据包真实索引存储在 tags 中"""
+    def _add_packet_to_list(self, info):
+        """在主线程中向 Treeview 中添加一行"""
         src = info.get("ip_src", info.get("arp_src_ip",
                      info.get("eth_src", "?")))
         dst = info.get("ip_dst", info.get("arp_dst_ip",
@@ -688,18 +642,16 @@ class PacketCaptureGUI:
         proto = info.get("proto_name", "?")
         length = info.get("length", 0)
         summary = PacketParser.get_summary(info)
-        item_id = self.tree.insert("", tk.END, values=(
-            info["id"], info["timestamp"], src, dst, proto, length, summary),
-            tags=(str(info.get("_idx", -1)),))
 
-    def _add_packet_to_list(self, info):
-        """在主线程中向 Treeview 中添加一行"""
-        if self._shutting_down:
-            return
+        # 过滤检查
         filt = self.capture_filter.get()
-        if not self._match_filter(info.get("proto_name", "?"), info, filt):
+        if not self._match_filter(proto, info, filt):
             return
-        self._insert_one_row(info)
+
+        self.tree.insert("", tk.END, values=(
+            info["id"], info["timestamp"], src, dst, proto, length, summary))
+
+        # 自动滚动到最新
         children = self.tree.get_children()
         if children:
             self.tree.see(children[-1])
@@ -728,7 +680,7 @@ class PacketCaptureGUI:
         if filt == "SSH(22)" and proto == "TCP":
             return (info.get("tcp_sport") == 22 or
                     info.get("tcp_dport") == 22)
-        return True
+        return False
 
     # ── 详情与十六进制显示 ────────────────────────────
 
@@ -736,18 +688,15 @@ class PacketCaptureGUI:
         selection = self.tree.selection()
         if not selection:
             return
-        tags = self.tree.item(selection[0], "tags")
-        if not tags:
+        values = self.tree.item(selection[0], "values")
+        if not values:
             return
-        try:
-            real_idx = int(tags[0])
-        except (ValueError, IndexError):
-            return
-        with self._packet_lock:
-            if real_idx < 0 or real_idx >= len(self.packets):
-                return
-            info = self.packets[real_idx]
-        self._show_detail(info)
+        packet_id = int(values[0])
+        with self._lock:
+            for pkt in self.packets:
+                if pkt.get("id") == packet_id:
+                    self._show_detail(pkt)
+                    return
 
     def _show_detail(self, info):
         """在详情面板中以分层树形式展示协议字段"""
@@ -896,16 +845,18 @@ class PacketCaptureGUI:
 
     def save_pcap(self):
         """将捕获的原始 scapy 包保存为 PCAP 格式"""
-        with self._packet_lock:
-            if not self.scapy_packets:
-                if self.packets:
-                    messagebox.showinfo("提示",
-                                        "当前数据包缺少原始 scapy 引用，无法保存为 PCAP。\n"
-                                        "请先捕获新数据包或生成示例数据后再保存。")
-                else:
-                    messagebox.showinfo("提示", "没有数据包可以保存")
-                return
-            pkt_snapshot = list(self.scapy_packets)  # 快照避免并发修改
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法保存 PCAP。\n请执行: pip install scapy")
+            return
+        if not self.scapy_packets:
+            if self.packets:
+                # 场景：数据来自 JSON 加载，没有原始 scapy 包
+                messagebox.showinfo("提示",
+                                    "当前数据包缺少原始 scapy 引用，无法保存为 PCAP。\n"
+                                    "请先捕获新数据包或生成示例数据后再保存。")
+            else:
+                messagebox.showinfo("提示", "没有数据包可以保存")
+            return
 
         file_path = filedialog.asksaveasfilename(
             title="保存为 PCAP 文件",
@@ -917,8 +868,10 @@ class PacketCaptureGUI:
             return
 
         try:
-            wrpcap(file_path, pkt_snapshot)
-            count = len(pkt_snapshot)
+            with self._lock:
+                pkts_to_save = list(self.scapy_packets)
+            wrpcap(file_path, pkts_to_save)
+            count = len(pkts_to_save)
             self.status_text.set(
                 f"已保存 {count} 个数据包到: "
                 f"{os.path.basename(file_path)} (PCAP 格式)")
@@ -931,6 +884,9 @@ class PacketCaptureGUI:
 
     def load_pcap(self):
         """从 PCAP 文件加载数据包"""
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法加载 PCAP。\n请执行: pip install scapy")
+            return
         file_path = filedialog.askopenfilename(
             title="加载 PCAP 文件",
             filetypes=[("PCAP/PCAPNG 文件", "*.pcap *.pcapng *.cap"),
@@ -945,15 +901,16 @@ class PacketCaptureGUI:
                 messagebox.showinfo("提示", "文件中没有数据包")
                 return
 
-            with self._packet_lock:
+            with self._lock:
                 start_id = len(self.packets)
-                for i, pkt in enumerate(scapy_pkts):
-                    info = PacketParser.parse_scapy_packet(pkt)
-                    info["id"] = start_id + i + 1
-                    info["_idx"] = len(self.packets)
-                    ts = pkt.time if hasattr(pkt, "time") else time.time()
-                    info["timestamp"] = datetime.fromtimestamp(float(ts)).strftime(
-                        "%H:%M:%S.%f")[:-3]
+            for i, pkt in enumerate(scapy_pkts):
+                info = PacketParser.parse_scapy_packet(pkt)
+                info["id"] = start_id + i + 1
+                ts = pkt.time if hasattr(pkt, "time") else time.time()
+                info["timestamp"] = datetime.fromtimestamp(float(ts)).strftime(
+                    "%H:%M:%S.%f")[:-3]
+                info["scapy_pkt"] = pkt
+                with self._lock:
                     self.packets.append(info)
                     self.scapy_packets.append(pkt)
 
@@ -1021,20 +978,24 @@ class PacketCaptureGUI:
     # ── 示例数据 ────────────────────────────────────
 
     def generate_samples(self):
+        if not SCAPY_AVAILABLE:
+            messagebox.showwarning("功能不可用", "scapy 库未安装，无法生成示例数据。\n请执行: pip install scapy")
+            return
         if self.packets and not messagebox.askyesno(
             "确认", "当前列表已有数据，新示例将追加到末尾。是否继续？"):
             return
 
         try:
             samples = PacketParser.generate_sample_packets(25)
-            with self._packet_lock:
+            with self._lock:
                 start_id = len(self.packets)
-                for i, pkt in enumerate(samples):
-                    info = PacketParser.parse_scapy_packet(pkt)
-                    info["id"] = start_id + i + 1
-                    info["_idx"] = len(self.packets)
-                    info["timestamp"] = datetime.now().strftime(
-                        "%H:%M:%S.%f")[:-3]
+            for i, pkt in enumerate(samples):
+                info = PacketParser.parse_scapy_packet(pkt)
+                info["id"] = start_id + i + 1
+                info["timestamp"] = datetime.now().strftime(
+                    "%H:%M:%S.%f")[:-3]
+                info["scapy_pkt"] = pkt
+                with self._lock:
                     self.packets.append(info)
                     self.scapy_packets.append(pkt)
 
@@ -1049,11 +1010,7 @@ class PacketCaptureGUI:
             return
         if messagebox.askyesno("确认",
                                f"确定清空全部 {len(self.packets)} 个数据包？"):
-            if self._batch_timer_id is not None:
-                self.root.after_cancel(self._batch_timer_id)
-                self._batch_timer_id = None
-            self._pending_infos.clear()
-            with self._packet_lock:
+            with self._lock:
                 self.packets.clear()
                 self.scapy_packets.clear()
             self.tree.delete(*self.tree.get_children())
@@ -1066,17 +1023,28 @@ class PacketCaptureGUI:
 
     # ── 辅助方法 ────────────────────────────────────
 
+    def _prune_treeview_rows(self):
+        """截断后同步清理 Treeview 中已不在 self.packets 的旧行"""
+        with self._lock:
+            existing_ids = {pkt.get("id") for pkt in self.packets}
+        for child in list(self.tree.get_children()):
+            values = self.tree.item(child, "values")
+            if values:
+                try:
+                    if int(values[0]) not in existing_ids:
+                        self.tree.delete(child)
+                except (ValueError, IndexError):
+                    pass
+
     def _refresh_list(self):
         self.tree.delete(*self.tree.get_children())
-        filt = self.capture_filter.get()
-        for info in self.packets:
-            if not self._match_filter(info.get("proto_name", "?"), info, filt):
-                continue
-            self._insert_one_row(info)
-        self._update_stats()
+        with self._lock:
+            for info in self.packets:
+                self._add_packet_to_list(info)
 
     def _update_stats(self):
-        count = len(self.packets)
+        with self._lock:
+            count = len(self.packets)
         self.lbl_stats.config(text=f"数据包: {count}")
         self.lbl_count.config(text=f"共 {count} 个数据包")
 
@@ -1136,10 +1104,6 @@ class PacketCaptureGUI:
                             "• 示例数据生成（无需管理员权限）")
 
     def _on_close(self):
-        self._shutting_down = True
-        if self._batch_timer_id is not None:
-            self.root.after_cancel(self._batch_timer_id)
-            self._batch_timer_id = None
         if self.sniffer.running:
             self.sniffer.stop()
         self.root.destroy()
