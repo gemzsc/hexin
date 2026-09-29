@@ -27,3 +27,12 @@
 
 ```bash
 pip install scapy
+```
+
+在本文件夹中启动程序：
+
+```bash
+python packet_capture_gui.py
+```
+
+实时捕获需要安装 Npcap 并以管理员权限运行。程序也提供示例数据功能。

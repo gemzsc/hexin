@@ -1,0 +1,36 @@
+# Local editor settings
+.vscode/
+
+# Code Runner scratch files
+tempCodeRunnerFile.*
+
+# Build output
+build/
+*.exe
+*.o
+*.obj
+*.out
+*.pdb
+*.ilk
+# 环境变量和本地密钥
+.env
+.env.*
+!.env.example
+
+# Node.js 依赖
+node_modules/
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Visual Studio local state and build output
+.vs/
+Debug/
+Release/
+x64/
+x86/
+*.vcxproj.user
+*.suo
