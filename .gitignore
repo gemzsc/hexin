@@ -1,0 +1,21 @@
+# Local editor settings
+.vscode/
+
+# Code Runner scratch files
+tempCodeRunnerFile.*
+
+# Build output
+build/
+*.exe
+*.o
+*.obj
+*.out
+*.pdb
+*.ilk
+# 环境变量和本地密钥
+.env
+.env.*
+!.env.example
+
+# Node.js 依赖
+node_modules/
