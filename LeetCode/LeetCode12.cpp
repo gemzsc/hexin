@@ -15,6 +15,7 @@ public:
                 res+=s[i];
             }
         }
+        
         return res;
     }
 };
