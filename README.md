@@ -5,6 +5,7 @@
 ## 内容
 
 - [`LeetCode/`](./LeetCode/)：LeetCode 题解与编程练习
+- [`MarkItDown/`](./MarkItDown/)：将 Word（DOCX）、PowerPoint（PPTX）和 PDF 转换为 Markdown 的 Python 工具
 - [`计网/`](./计网/)：计算机网络课程实践项目——局域网数据包捕获程序
 - [`操作系统实验/`](./操作系统实验/)：操作系统课程实验与实验目录索引
 - [`C++程序设计课程实践/`](./C++程序设计课程实践/)：C++程序设计课程实践项目——高校学生管理系统
