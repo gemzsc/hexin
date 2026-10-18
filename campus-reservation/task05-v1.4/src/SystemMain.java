@@ -1,4 +1,4 @@
-import exception.EmptyParameterException;
+import exception.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -7,52 +7,55 @@ import java.util.List;
 
 public class SystemMain {
 
-    private static boolean isUsernameValid(String username) {
-        return username != null
-                && !username.trim().isEmpty()
-                && !username.contains("|");
+    private static void validateUsername(String username){
+        if(username ==null || username.trim().isEmpty()){
+            throw new EmptyParameterException("用户名不能为空");
+        }
+
+        if(username.contains("|")){
+            throw new BusinessException("用户名不能包含分隔符 |");
+        }
     }
 
     private static void validatePassword(String password){
         if(password == null || password.trim().isEmpty()){
             throw new EmptyParameterException("密码不能为空");
         }
+
+        if(password.length() < 6){
+            throw new BusinessException("密码长度至少为6位");
+        }
+
+        if(password.contains("|")){
+            throw new BusinessException("密码不能包含分隔符 |");
+        }
     }
 
 
-    private static void register(Scanner scanner , List<User> users){
+    private static void register(Scanner scanner , List<User> users) throws IOException{
+
         System.out.print("请输入用户名：");
         String username = scanner.nextLine().trim();
 
         System.out.print("请输入密码：");
         String password = scanner.nextLine();
 
-        if(!isUsernameValid(username)){
-            System.out.println("用户名不能为空");
-            return;
-        }
+        validateUsername(username);
 
-        if (!isPasswordValid(password)){
-            System.out.println("密码不能为空,且长度至少为6位");
-            return;
-        }
+        validatePassword(password);
 
         if(findUserByUsername(users,username) != null){
-            System.out.println("用户名已存在");
-            return;
+            throw  new UserAlreadyExistsException("用户名已存在");
         }
 
         User newUser = new User(
                 username, password, "student", LocalDateTime.now()
         );
 
-        try {
-            FileUtil.saveUser(newUser);
-            users.add(newUser);
-            System.out.println("注册成功");
-        } catch (IOException e) {
-            System.out.println("用户保存失败，请稍后重试");
-        }
+        FileUtil.saveUser(newUser);
+        users.add(newUser);
+        System.out.println("注册成功");
+
     }
 
     private static void login(Scanner scanner, List<User> users){
@@ -62,16 +65,26 @@ public class SystemMain {
         System.out.print("请输入密码：");
         String password = scanner.nextLine();
 
+        if (username == null || username.trim().isEmpty()) {
+            throw new EmptyParameterException("用户名不能为空");
+        }
+        if (password == null || password.trim().isEmpty()) {
+            throw new EmptyParameterException("密码不能为空");
+        }
+
         User user = findUserByUsername(users,username);
 
         if(user == null){
-            System.out.println("用户不存在，请重新输入或注册");
-        }else if(!user.getPassword().equals(password)){
-            System.out.println("密码错误");
-        }else{
-            System.out.println("学生登录成功");
-            System.out.println(user);
+            throw new UserNotFoundException("用户不存在，请先注册");
         }
+
+        if(!user.getPassword().equals(password)){
+            throw new PasswordIncorrectException("密码错误");
+        }
+
+        System.out.println("学生登录成功");
+        System.out.println(user);
+
     }
 
     private static User findUserByUsername(List<User> users,String username){
@@ -105,21 +118,26 @@ public class SystemMain {
 
             String choice =scanner.nextLine();
 
-            switch(choice){
-                case "1":
-                    login(scanner,users);
-                    break;
-                case "2":
-                    register(scanner,users);
-                    break;
-                case "0":
-                    System.out.println("再见！");
-                    scanner.close();
-                    return;
-                default:
-                    System.out.println("无效选项,请重新输入！");
+            try{
+                switch(choice){
+                    case "1":
+                        login(scanner,users);
+                        break;
+                    case "2":
+                        register(scanner , users);
+                        break;
+                    case "0":
+                        System.out.println("再见！");
+                        scanner.close();
+                        return;
+                    default:
+                        System.out.println("无效选项,请重新输入！");
+                }
+            }catch(BusinessException e){
+                System.out.println(e.getMessage());
+            }catch(IOException e){
+                System.out.println("用户数据保存失败，请稍后重试");
             }
         }
-
     }
 }
