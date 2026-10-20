@@ -87,6 +87,19 @@ public class SystemMain {
 
     }
 
+    private static void ensureAdminExists(List<User> users) throws IOException{
+        boolean adminExists = users.stream()
+                .anyMatch(user -> "admin".equals(user.getRole()));
+
+        if(!adminExists){
+            User admin = new User(
+                    "admin","123456","admin",LocalDateTime.now()
+            );
+            FileUtil.saveUser(admin);
+            users.add(admin);
+        }
+    }
+
     private static User findUserByUsername(List<User> users,String username){
         for(User user : users){
             if(user.getUsername().equals(username)){
@@ -104,6 +117,7 @@ public class SystemMain {
 
         try {
             users = FileUtil.loadUsers();
+            ensureAdminExists(users);
         } catch (IOException e) {
             System.out.println("读取用户数据失败，程序无法启动");
             scanner.close();
