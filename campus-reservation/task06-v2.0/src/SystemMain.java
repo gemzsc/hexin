@@ -58,7 +58,7 @@ public class SystemMain {
 
     }
 
-    private static void login(Scanner scanner, List<User> users){
+    private static User login(Scanner scanner, List<User> users){
         System.out.print("请输入用户名：");
         String username = scanner.nextLine().trim();
 
@@ -82,8 +82,7 @@ public class SystemMain {
             throw new PasswordIncorrectException("密码错误");
         }
 
-        System.out.println("学生登录成功");
-        System.out.println(user);
+        return user;
 
     }
 
@@ -135,8 +134,15 @@ public class SystemMain {
             try{
                 switch(choice){
                     case "1":
-                        login(scanner,users);
-                        break;
+                        User currentUser = login(scanner,users);
+
+                        if("admin".equals(currentUser.getRole())){
+                            System.out.println("管理员登录成功");
+                            //后续进入管理员资源菜单
+                        }else{
+                            System.out.println("学生登录成功");
+                            //后续进入学生资源查询菜单
+                        }
                     case "2":
                         register(scanner , users);
                         break;
