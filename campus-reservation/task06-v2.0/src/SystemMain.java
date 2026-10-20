@@ -32,7 +32,7 @@ public class SystemMain {
     }
 
     private static boolean isValidResourceStatus(String status){
-        return "AVALIABLE".equals(status)
+        return "AVAILABLE".equals(status)
                 || "OCCUPIED".equals(status)
                 || "DISABLED".equals(status);
     }

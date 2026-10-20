@@ -8,7 +8,8 @@ import java.util.*;
 public class FileUtil {
     private FileUtil(){
     }
-    //文件格式： username|password|role|registerTime
+    //用户文件格式： username|password|role|registerTime
+    //资源文件格式: id|name|type|status|location|description
     private static final Path USER_FILE = Paths.get("user.txt");
     private static final Path RESOURCE_FILE = Paths.get("resource.txt");
 

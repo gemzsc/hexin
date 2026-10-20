@@ -72,6 +72,6 @@ public class CampusResource {
                 +"',type='"+ type
                 +"',status='"+ status
                 +"',location='"+ location
-                +"',description='"+ description + "}";
+                +"',description='"+ description + "'}";
     }
 }
