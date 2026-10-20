@@ -31,6 +31,11 @@ public class SystemMain {
         }
     }
 
+    private static boolean isValidResourceStatus(String status){
+        return "AVALIABLE".equals(status)
+                || "OCCUPIED".equals(status)
+                || "DISABLED".equals(status);
+    }
 
     private static void register(Scanner scanner , List<User> users) throws IOException{
 
@@ -113,12 +118,14 @@ public class SystemMain {
         Scanner scanner = new Scanner(System.in);
 
         List<User> users;
+        List<CampusResource> resources;
 
         try {
             users = FileUtil.loadUsers();
             ensureAdminExists(users);
+            resources = FileUtil.loadResources();
         } catch (IOException e) {
-            System.out.println("读取用户数据失败，程序无法启动");
+            System.out.println("读取用户或资源数据失败，程序无法启动");
             scanner.close();
             return;
         }

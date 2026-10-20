@@ -10,18 +10,26 @@ public class FileUtil {
     }
     //文件格式： username|password|role|registerTime
     private static final Path USER_FILE = Paths.get("user.txt");
+    private static final Path RESOURCE_FILE = Paths.get("resource.txt");
 
-    public static void ensureFileExists() throws IOException{
+    public static void ensureUserFileExists() throws IOException{
         if (!Files.exists(USER_FILE)){
             Files.createFile(USER_FILE);
             System.out.println("已创建用户数据文件");
         }
     }
 
+    public static void ensureResourceFileExists() throws IOException{
+        if (!Files.exists(RESOURCE_FILE)){
+            Files.createFile(RESOURCE_FILE);
+            System.out.println("已创建资源数据文件");
+        }
+    }
+
     public static List<User> loadUsers() throws IOException{
         List<User> users =new ArrayList<>();
 
-        ensureFileExists();
+        ensureUserFileExists();
 
         try(BufferedReader reader =
                     Files.newBufferedReader(USER_FILE,StandardCharsets.UTF_8)){
@@ -87,6 +95,87 @@ public class FileUtil {
                 StandardOpenOption.APPEND)){
             writer.write(line);
             writer.newLine();
+        }
+    }
+
+    public static List<CampusResource> loadResources() throws IOException {
+        List<CampusResource> resources = new ArrayList<>();
+        ensureResourceFileExists();
+
+        try (BufferedReader reader =
+                     Files.newBufferedReader(RESOURCE_FILE, StandardCharsets.UTF_8)) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                String[] fields = line.split("\\|", -1);
+
+                if (fields.length != 6) {
+                    System.out.println("跳过格式错误的资源数据：" + line);
+                    continue;
+                }
+
+                if (fields[0].trim().isEmpty()
+                        || fields[1].trim().isEmpty()
+                        || fields[2].trim().isEmpty()
+                        || fields[3].trim().isEmpty()
+                        || fields[4].trim().isEmpty()) {
+                    System.out.println("跳过必要字段为空的资源数据：" + line);
+                    continue;
+                }
+
+                CampusResource resource = new CampusResource(
+                        fields[0], fields[1], fields[2],
+                        fields[3], fields[4], fields[5]
+                );
+                resources.add(resource);
+            }
+        }
+
+        return resources;
+    }
+
+    public static void saveResources(List<CampusResource> resources) throws IOException {
+        if (resources == null) {
+            throw new IllegalArgumentException("资源集合不能为空");
+        }
+
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                RESOURCE_FILE,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE)) {
+
+            for (CampusResource resource : resources) {
+                if (resource == null
+                        || resource.getId() == null
+                        || resource.getName() == null
+                        || resource.getType() == null
+                        || resource.getStatus() == null
+                        || resource.getLocation() == null
+                        || resource.getDescription() == null) {
+                    throw new IllegalArgumentException("资源信息不完整");
+                }
+
+                if (resource.getId().contains("|")
+                        || resource.getName().contains("|")
+                        || resource.getType().contains("|")
+                        || resource.getStatus().contains("|")
+                        || resource.getLocation().contains("|")
+                        || resource.getDescription().contains("|")) {
+                    throw new IllegalArgumentException("资源字段不能包含分隔符 |");
+                }
+
+                String line = resource.getId() + "|"
+                        + resource.getName() + "|"
+                        + resource.getType() + "|"
+                        + resource.getStatus() + "|"
+                        + resource.getLocation() + "|"
+                        + resource.getDescription();
+
+                writer.write(line);
+                writer.newLine();
+            }
         }
     }
 
