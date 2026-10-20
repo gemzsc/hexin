@@ -2,8 +2,10 @@ import exception.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class SystemMain {
 
@@ -113,6 +115,77 @@ public class SystemMain {
         return null;
     }
 
+    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources) {
+        while (true) {
+            System.out.println("\n管理员资源菜单");
+            System.out.println("1. 新增资源");
+            System.out.println("2. 查看全部资源");
+            System.out.println("3. 修改资源");
+            System.out.println("4. 删除资源");
+            System.out.println("0. 返回主菜单");
+
+            String choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1":
+                    System.out.println("新增资源功能待实现");
+                    break;
+                case "2":
+                    printResources(resources);
+                    break;
+                case "3":
+                    System.out.println("修改资源功能待实现");
+                    break;
+                case "4":
+                    System.out.println("删除资源功能待实现");
+                    break;
+                case "0":
+                    return;
+                default:
+                    System.out.println("无效选项，请重新输入");
+            }
+        }
+    }
+
+    private static void showStudentMenu(Scanner scanner,List<CampusResource> resources) {
+        while (true) {
+            System.out.println("\n学生资源菜单");
+            System.out.println("1. 查看可预约资源");
+            System.out.println("0. 返回主菜单");
+
+            String choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1":
+                    List<CampusResource> avaliableResources = new ArrayList<>();
+
+                    for(CampusResource resource : resources){
+                        if("AVAILABLE".equals(resource.getStatus())){
+                            avaliableResources.add(resource);
+                        }
+                    }
+
+                    printResources(avaliableResources);
+                    break;
+                case "0":
+                    return;
+                default:
+                    System.out.println("无效选项，请重新输入");
+            }
+        }
+    }
+
+    private static void printResources(List<CampusResource> resources){
+        if(resources.isEmpty()){
+            System.out.println("暂无资源");
+            return;
+        }
+
+        for(CampusResource resource : resources){
+            System.out.println(resource);
+        }
+    }
+
     public static void main(String[] args) {
         //创建Scanner
         Scanner scanner = new Scanner(System.in);
@@ -141,15 +214,18 @@ public class SystemMain {
             try{
                 switch(choice){
                     case "1":
-                        User currentUser = login(scanner,users);
+                        User user = login(scanner, users);
 
-                        if("admin".equals(currentUser.getRole())){
+                        if ("admin".equals(user.getRole())) {
                             System.out.println("管理员登录成功");
-                            //后续进入管理员资源菜单
-                        }else{
+                            showAdminMenu(scanner,resources);
+                        } else if ("student".equals(user.getRole())) {
                             System.out.println("学生登录成功");
-                            //后续进入学生资源查询菜单
+                            showStudentMenu(scanner,resources);
+                        } else {
+                            System.out.println("未知角色，无法进入系统");
                         }
+                        break;
                     case "2":
                         register(scanner , users);
                         break;
