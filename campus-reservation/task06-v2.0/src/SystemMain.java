@@ -134,7 +134,7 @@ public class SystemMain {
                     printResources(resources);
                     break;
                 case "3":
-                    update
+                    updateResource(scanner,resources);
                     break;
                 case "4":
                     System.out.println("删除资源功能待实现");
