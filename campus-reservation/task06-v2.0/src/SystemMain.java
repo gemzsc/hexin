@@ -292,7 +292,7 @@ public class SystemMain {
             throw new BusinessException("名称、类型和位置不能为空");
         }
 
-        if(isValidResourceStatus(newStatus)){
+        if(!isValidResourceStatus(newStatus)){
             throw new BusinessException(
                     "资源状态只能是 AVAILABLE、OCCUPIED 或 DISABLED");
         }
