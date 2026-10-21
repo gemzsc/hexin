@@ -115,7 +115,7 @@ public class SystemMain {
         return null;
     }
 
-    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources) {
+    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources) throws IOException{
         while (true) {
             System.out.println("\n管理员资源菜单");
             System.out.println("1. 新增资源");
@@ -128,13 +128,13 @@ public class SystemMain {
 
             switch (choice) {
                 case "1":
-                    System.out.println("新增资源功能待实现");
+                    addResource(scanner, resources);
                     break;
                 case "2":
                     printResources(resources);
                     break;
                 case "3":
-                    System.out.println("修改资源功能待实现");
+                    update
                     break;
                 case "4":
                     System.out.println("删除资源功能待实现");
@@ -184,6 +184,156 @@ public class SystemMain {
         for(CampusResource resource : resources){
             System.out.println(resource);
         }
+    }
+
+    public static void addResource(
+            Scanner scanner,List<CampusResource> resources) throws IOException{
+                System.out.print("请输入资源名称：");
+                String name = scanner.nextLine().trim();
+
+                System.out.print("请输入资源类型：");
+                String type = scanner.nextLine().trim();
+
+                System.out.print("请输入资源位置：");
+                String location = scanner.nextLine().trim();
+
+                System.out.print("请输入资源描述(可留空)：");
+                String description = scanner.nextLine().trim();
+
+                if(name.isEmpty()){
+                    throw new BusinessException("资源名称不能为空");
+                }
+                if(name.contains("|")){
+                    throw new BusinessException("资源名称不能包含分隔符 |");
+                }
+
+                if(type.isEmpty()){
+                    throw new BusinessException("资源类型不能为空");
+                }
+                if(type.contains("|")){
+                    throw new BusinessException("资源类型不能包含分隔符 |");
+                }
+
+                if(location.isEmpty()){
+                    throw new BusinessException("资源位置不能为空");
+                }
+                if(location.contains("|")){
+                    throw new BusinessException("资源位置不能包含分隔符 |");
+                }
+
+                if(description.contains("|")){
+                    throw new BusinessException("资源描述不能包含分隔符 |");
+                }
+
+                String id = java.util.UUID.randomUUID().toString();
+                String status = "AVAILABLE";
+
+                CampusResource resource = new CampusResource(
+                        id,name,type,status,location,description);
+
+                List<CampusResource> updated = new ArrayList<>(resources);
+                updated.add(resource);
+
+                FileUtil.saveResources(updated);
+                resources.clear();
+                resources.addAll(updated);
+
+                System.out.println("资源新增成功，资源 ID：" + id);
+    }
+
+    public static CampusResource findResourceById(
+            List<CampusResource> resources,String id){
+        for(CampusResource resource : resources){
+            if(resource != null
+            && resource.getId().equals(id)){
+                return resource;
+            }
+        }
+        return null;
+    }
+
+    private static void updateResource(
+            Scanner scanner,List<CampusResource> resources) throws IOException{
+        System.out.print("请输入要修改的资源 ID：");
+        String id = scanner.nextLine().trim();
+
+        CampusResource oldResource = findResourceById(resources, id);
+        if (oldResource == null) {
+            System.out.println("资源不存在");
+            return;
+        }
+
+        System.out.print("新名称（回车保留原值）：");
+        String input = scanner.nextLine().trim();
+        String newName = input.isEmpty() ? oldResource.getName() : input;
+
+        System.out.print("新类型（回车保留原值）：");
+        input = scanner.nextLine().trim();
+        String newType = input.isEmpty() ? oldResource.getType() : input;
+
+        System.out.print("新位置（回车保留原值）：");
+        input = scanner.nextLine().trim();
+        String newLocation = input.isEmpty()
+                ? oldResource.getLocation() : input;
+
+        System.out.print("新状态（回车保留原值）：");
+        input = scanner.nextLine().trim();
+        String newStatus = input.isEmpty()
+                ? oldResource.getStatus() : input;
+
+        System.out.print("新描述（回车保留原值）：");
+        input = scanner.nextLine().trim();
+        String newDescription = input.isEmpty()
+                ? oldResource.getDescription() : input;
+
+        if(newName.trim().isEmpty()
+                || newType.trim().isEmpty()
+                || newLocation.trim().isEmpty()){
+            throw new BusinessException("名称、类型和位置不能为空");
+        }
+
+        if(isValidResourceStatus(newStatus)){
+            throw new BusinessException(
+                    "资源状态只能是 AVAILABLE、OCCUPIED 或 DISABLED");
+        }
+
+        String[] fields = {
+                newName, newType, newStatus,
+                newLocation, newDescription
+        };
+
+        for (String field : fields) {
+            if (field.contains("|")) {
+                throw new BusinessException("资源字段不能包含分隔符 |");
+            }
+        }
+
+        CampusResource changed = new CampusResource(
+                oldResource.getId(),newName,newType,newStatus,
+                newLocation,newDescription
+        );
+
+        List<CampusResource> updated = new ArrayList<>(resources);
+
+        int targetIndex = -1;
+        for(int i=0;i < updated.size();i++){
+            if(id.equals(updated.get(i).getId())){
+                targetIndex = i;
+                break;
+            }
+        }
+
+        if(targetIndex == -1){
+            System.out.println("资源不存在");
+            return;
+        }
+
+        updated.set(targetIndex,changed);
+
+        FileUtil.saveResources(updated);
+        resources.clear();
+        resources.addAll(updated);
+        System.out.println("资源修改成功");
     }
 
     public static void main(String[] args) {
