@@ -27,6 +27,35 @@ public class FileUtil {
         }
     }
 
+    private static void validateResources(List<CampusResource> resources) {
+        for (CampusResource resource : resources) {
+            if (resource == null
+                    || resource.getId() == null
+                    || resource.getName() == null
+                    || resource.getType() == null
+                    || resource.getStatus() == null
+                    || resource.getLocation() == null
+                    || resource.getDescription() == null) {
+                throw new IllegalArgumentException("资源信息不完整");
+            }
+
+            String[] fields = {
+                    resource.getId(),
+                    resource.getName(),
+                    resource.getType(),
+                    resource.getStatus(),
+                    resource.getLocation(),
+                    resource.getDescription()
+            };
+
+            for (String field : fields) {
+                if (field.contains("|")) {
+                    throw new IllegalArgumentException("资源字段不能包含分隔符 |");
+                }
+            }
+        }
+    }
+
     public static List<User> loadUsers() throws IOException{
         List<User> users =new ArrayList<>();
 
@@ -140,6 +169,8 @@ public class FileUtil {
             throw new IllegalArgumentException("资源集合不能为空");
         }
 
+        validateResources(resources);
+
         try (BufferedWriter writer = Files.newBufferedWriter(
                 RESOURCE_FILE,
                 StandardCharsets.UTF_8,
@@ -148,24 +179,6 @@ public class FileUtil {
                 StandardOpenOption.WRITE)) {
 
             for (CampusResource resource : resources) {
-                if (resource == null
-                        || resource.getId() == null
-                        || resource.getName() == null
-                        || resource.getType() == null
-                        || resource.getStatus() == null
-                        || resource.getLocation() == null
-                        || resource.getDescription() == null) {
-                    throw new IllegalArgumentException("资源信息不完整");
-                }
-
-                if (resource.getId().contains("|")
-                        || resource.getName().contains("|")
-                        || resource.getType().contains("|")
-                        || resource.getStatus().contains("|")
-                        || resource.getLocation().contains("|")
-                        || resource.getDescription().contains("|")) {
-                    throw new IllegalArgumentException("资源字段不能包含分隔符 |");
-                }
 
                 String line = resource.getId() + "|"
                         + resource.getName() + "|"
