@@ -130,6 +130,7 @@ public class FileUtil {
 
     public static List<CampusResource> loadResources() throws IOException {
         List<CampusResource> resources = new ArrayList<>();
+        Set<String> resourceIds = new HashSet<>();
         ensureResourceFileExists();
 
         try (BufferedReader reader =
@@ -152,6 +153,23 @@ public class FileUtil {
                     System.out.println("跳过必要字段为空的资源数据：" + line);
                     continue;
                 }
+                String status = fields[3];
+                boolean validStatus =
+                        "AVAILABLE".equals(status)
+                                || "OCCUPIED".equals(status)
+                                || "DISABLED".equals(status);
+
+                if (!validStatus) {
+                    System.out.println("跳过状态不合法的资源数据：" + line);
+                    continue;
+                }
+
+                String id = fields[0];
+                if (resourceIds.contains(id)) {
+                    System.out.println("跳过资源 ID 重复的数据：" + line);
+                    continue;
+                }
+                resourceIds.add(id);
 
                 CampusResource resource = new CampusResource(
                         fields[0], fields[1], fields[2],

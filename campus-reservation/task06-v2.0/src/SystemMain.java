@@ -137,7 +137,7 @@ public class SystemMain {
                     updateResource(scanner,resources);
                     break;
                 case "4":
-                    System.out.println("删除资源功能待实现");
+                    deleteResource(scanner,resources);
                     break;
                 case "0":
                     return;
@@ -252,6 +252,17 @@ public class SystemMain {
         return null;
     }
 
+    private static int findResourceIndexById(
+            List<CampusResource> resources, String id) {
+        for (int i = 0; i < resources.size(); i++) {
+            CampusResource resource = resources.get(i);
+            if (resource != null && id.equals(resource.getId())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static void updateResource(
             Scanner scanner,List<CampusResource> resources) throws IOException{
         System.out.print("请输入要修改的资源 ID：");
@@ -336,6 +347,27 @@ public class SystemMain {
         System.out.println("资源修改成功");
     }
 
+    private static  void deleteResource(
+            Scanner scanner,List<CampusResource> resources) throws IOException{
+        System.out.print("请输入要删除的资源 ID：");
+        String id = scanner.nextLine().trim();
+
+        int targetIndex = findResourceIndexById(resources,id);
+        if(targetIndex < 0){
+            System.out.println("资源不存在");
+            return;
+        }
+
+        List<CampusResource> updated = new ArrayList<>(resources);
+        updated.remove(targetIndex);
+
+        FileUtil.saveResources(updated);
+
+        resources.clear();
+        resources.addAll(updated);
+        System.out.println("资源删除成功");
+    }
+
     public static void main(String[] args) {
         //创建Scanner
         Scanner scanner = new Scanner(System.in);
@@ -368,7 +400,11 @@ public class SystemMain {
 
                         if ("admin".equals(user.getRole())) {
                             System.out.println("管理员登录成功");
-                            showAdminMenu(scanner,resources);
+                            try {
+                                showAdminMenu(scanner, resources);
+                            } catch (IOException e) {
+                                System.out.println("资源数据保存失败，请稍后重试");
+                            }
                         } else if ("student".equals(user.getRole())) {
                             System.out.println("学生登录成功");
                             showStudentMenu(scanner,resources);
@@ -377,7 +413,11 @@ public class SystemMain {
                         }
                         break;
                     case "2":
-                        register(scanner , users);
+                        try {
+                            register(scanner, users);
+                        } catch (IOException e) {
+                            System.out.println("用户数据保存失败，请稍后重试");
+                        }
                         break;
                     case "0":
                         System.out.println("再见！");
@@ -388,8 +428,6 @@ public class SystemMain {
                 }
             }catch(BusinessException e){
                 System.out.println(e.getMessage());
-            }catch(IOException e){
-                System.out.println("用户数据保存失败，请稍后重试");
             }
         }
     }
