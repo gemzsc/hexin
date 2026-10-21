@@ -115,7 +115,7 @@ public class SystemMain {
         return null;
     }
 
-    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources) throws IOException{
+    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources,User user) throws IOException{
         while (true) {
             System.out.println("\n管理员资源菜单");
             System.out.println("1. 新增资源");
@@ -128,22 +128,29 @@ public class SystemMain {
 
             switch (choice) {
                 case "1":
-                    addResource(scanner, resources);
+                    addResource(scanner, resources,user);
                     break;
                 case "2":
                     printResources(resources);
                     break;
                 case "3":
-                    updateResource(scanner,resources);
+                    updateResource(scanner,resources,user);
                     break;
                 case "4":
-                    deleteResource(scanner,resources);
+                    deleteResource(scanner,resources,user);
                     break;
                 case "0":
                     return;
                 default:
                     System.out.println("无效选项，请重新输入");
             }
+        }
+    }
+
+    private static void requireAdmin(User currentUser){
+        if(currentUser == null
+                ||!"admin".equals(currentUser.getRole())){
+            throw new BusinessException("无权限执行资源管理操作");
         }
     }
 
@@ -186,8 +193,10 @@ public class SystemMain {
         }
     }
 
-    public static void addResource(
-            Scanner scanner,List<CampusResource> resources) throws IOException{
+    private static void addResource(
+            Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
+                requireAdmin(currentUser);
+
                 System.out.print("请输入资源名称：");
                 String name = scanner.nextLine().trim();
 
@@ -263,16 +272,24 @@ public class SystemMain {
         return -1;
     }
 
+    private static CampusResource requireResourceById(
+            List<CampusResource> resources,String id){
+        CampusResource resource = findResourceById(resources,id);
+
+        if(resource == null){
+            throw new BusinessException("资源不存在");
+        }
+        return resource;
+    }
+
     private static void updateResource(
-            Scanner scanner,List<CampusResource> resources) throws IOException{
+            Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
+        requireAdmin(currentUser);
+
         System.out.print("请输入要修改的资源 ID：");
         String id = scanner.nextLine().trim();
 
-        CampusResource oldResource = findResourceById(resources, id);
-        if (oldResource == null) {
-            System.out.println("资源不存在");
-            return;
-        }
+        CampusResource oldResource = requireResourceById(resources, id);
 
         System.out.print("新名称（回车保留原值）：");
         String input = scanner.nextLine().trim();
@@ -348,15 +365,14 @@ public class SystemMain {
     }
 
     private static  void deleteResource(
-            Scanner scanner,List<CampusResource> resources) throws IOException{
+            Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
+        requireAdmin(currentUser);
+
         System.out.print("请输入要删除的资源 ID：");
         String id = scanner.nextLine().trim();
 
-        int targetIndex = findResourceIndexById(resources,id);
-        if(targetIndex < 0){
-            System.out.println("资源不存在");
-            return;
-        }
+        CampusResource target = requireResourceById(resources, id);
+        int targetIndex = findResourceIndexById(resources, target.getId());
 
         List<CampusResource> updated = new ArrayList<>(resources);
         updated.remove(targetIndex);
@@ -401,7 +417,7 @@ public class SystemMain {
                         if ("admin".equals(user.getRole())) {
                             System.out.println("管理员登录成功");
                             try {
-                                showAdminMenu(scanner, resources);
+                                showAdminMenu(scanner, resources,user);
                             } catch (IOException e) {
                                 System.out.println("资源数据保存失败，请稍后重试");
                             }

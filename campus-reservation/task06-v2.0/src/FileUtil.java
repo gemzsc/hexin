@@ -39,6 +39,10 @@ public class FileUtil {
                 throw new IllegalArgumentException("资源信息不完整");
             }
 
+            if (!isValidResourceStatus(resource.getStatus())) {
+                throw new IllegalArgumentException("资源状态不合法");
+            }
+
             String[] fields = {
                     resource.getId(),
                     resource.getName(),
@@ -126,6 +130,12 @@ public class FileUtil {
             writer.write(line);
             writer.newLine();
         }
+    }
+
+    private static boolean isValidResourceStatus(String status) {
+        return "AVAILABLE".equals(status)
+                || "OCCUPIED".equals(status)
+                || "DISABLED".equals(status);
     }
 
     public static List<CampusResource> loadResources() throws IOException {
