@@ -78,11 +78,11 @@ public class SystemMain {
             throw new EmptyParameterException("密码不能为空");
         }
 
-        User user = findUserByUsername(users,username);
-
-        if(user == null){
+        Result<User> userResult = queryUserByUsername(users, username);
+        if (!userResult.isSuccess()) {
             throw new UserNotFoundException("用户不存在，请先注册");
         }
+        User user = userResult.getData();
 
         if(!user.getPassword().equals(password)){
             throw new PasswordIncorrectException("密码错误");
