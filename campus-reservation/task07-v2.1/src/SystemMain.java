@@ -412,30 +412,42 @@ public class SystemMain {
             try{
                 switch(choice){
                     case "1":
-                        Result<User> loginResult = login(scanner,users);
-                        if(loginResult.isSuccess()){
-                            User user = loginResult.getData();
-                            if ("admin".equals(user.getRole())) {
-                                System.out.println("管理员登录成功");
-                                try {
-                                    showAdminMenu(scanner, resources,user);
-                                } catch (IOException e) {
-                                    System.out.println("资源数据保存失败，请稍后重试");
-                                }
-                            } else if ("student".equals(user.getRole())) {
-                                System.out.println("学生登录成功");
-                                showStudentMenu(scanner,resources);
-                            } else {
-                                System.out.println("未知角色，无法进入系统");
+                        Result<User> loginResult;
+                        try {
+                            loginResult = login(scanner, users);
+                        } catch (BusinessException e) {
+                            loginResult = Result.fail(e.getMessage());
+                        }
+                        if(!loginResult.isSuccess()){
+                            System.out.print(loginResult.getMsg());
+                            break;
+                        }
+
+                        User user = loginResult.getData();
+                        if ("admin".equals(user.getRole())) {
+                            System.out.println("管理员登录成功");
+                            try {
+                                showAdminMenu(scanner, resources,user);
+                            } catch (IOException e) {
+                                System.out.println("资源数据保存失败，请稍后重试");
                             }
+                        } else if ("student".equals(user.getRole())) {
+                            System.out.println("学生登录成功");
+                            showStudentMenu(scanner,resources);
+                        } else {
+                            System.out.println("未知角色，无法进入系统");
                         }
                         break;
                     case "2":
-                        try {
-                            register(scanner, users);
-                        } catch (IOException e) {
-                            System.out.println("用户数据保存失败，请稍后重试");
+                        Result<Void> registerResult;
+                        try{
+                            registerResult = register(scanner,users);
+                        }catch(BusinessException e){
+                            registerResult = Result.fail(e.getMessage());
+                        }catch (IOException e){
+                            registerResult = Result.fail("用户数据保存失败，请稍后重试");
                         }
+                        System.out.println(registerResult.getMsg());
                         break;
                     case "0":
                         System.out.println("再见！");
