@@ -116,6 +116,15 @@ public class SystemMain {
 
     }
 
+    private static Result<User> queryUserByUsername(
+            List<User> users, String username) {
+        User user = findUserByUsername(users, username);
+        if (user == null) {
+            return Result.fail("用户不存在");
+        }
+        return Result.success("查询成功", user);
+    }
+
     private static Result<List<CampusResource>> queryAllResources(
             List<CampusResource> resources) {
         return Result.success("查询成功", resources);
@@ -164,6 +173,7 @@ public class SystemMain {
                 case "2":
                     Result<List<CampusResource>> result = queryAllResources(resources);
                     if (result.isSuccess()) {
+                        System.out.println(result.getMsg());
                         printResources(result.getData());
                     } else {
                         System.out.println(result.getMsg());
@@ -218,6 +228,7 @@ public class SystemMain {
                 case "1":
                     Result<List<CampusResource>> result = queryAvailableResources(resources);
                     if (result.isSuccess()) {
+                        System.out.println(result.getMsg());
                         printResources(result.getData());
                     } else {
                         System.out.println(result.getMsg());
@@ -299,15 +310,24 @@ public class SystemMain {
                 return Result.success("资源新增成功",resource);
     }
 
-    public static CampusResource findResourceById(
-            List<CampusResource> resources,String id){
+    private static CampusResource findResourceByIdOrNull(
+            List<CampusResource> resources, String id) {
         for(CampusResource resource : resources){
             if(resource != null
-            && resource.getId().equals(id)){
+                    && resource.getId().equals(id)){
                 return resource;
             }
         }
         return null;
+    }
+
+    public static Result<CampusResource> findResourceById(
+            List<CampusResource> resources, String id) {
+        CampusResource resource = findResourceByIdOrNull(resources, id);
+        if (resource == null) {
+            return Result.fail("未找到该 ID 对应的资源");
+        }
+        return Result.success("查询成功", resource);
     }
 
     private static int findResourceIndexById(
@@ -323,7 +343,7 @@ public class SystemMain {
 
     private static CampusResource requireResourceById(
             List<CampusResource> resources,String id){
-        CampusResource resource = findResourceById(resources,id);
+        CampusResource resource = findResourceByIdOrNull(resources, id);
 
         if(resource == null){
             throw new BusinessException("资源不存在");

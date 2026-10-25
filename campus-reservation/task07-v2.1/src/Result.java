@@ -18,7 +18,7 @@ public class Result<T> {
     }
 
     public static <T> Result<T> success(T data){
-        return new Result<T>(true,null,data);
+        return new Result<T>(true,"操作成功",data);
     }
 
     public static <T> Result<T> success(String msg){
@@ -50,9 +50,9 @@ public class Result<T> {
     }
 
     @Override
-    public String toString(){
-        return "Result{success='" + success
-                +"',msg='" + msg
-                +"',data="+"}";
+    public String toString() {
+        return "Result{success=" + success
+                + ", msg='" + msg + '\''
+                + ", data=" + data + '}';
     }
 }
