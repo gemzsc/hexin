@@ -39,7 +39,7 @@ public class SystemMain {
                 || "DISABLED".equals(status);
     }
 
-    private static void register(Scanner scanner , List<User> users) throws IOException{
+    private static Result<Void> register(Scanner scanner , List<User> users) throws IOException{
 
         System.out.print("请输入用户名：");
         String username = scanner.nextLine().trim();
@@ -61,11 +61,11 @@ public class SystemMain {
 
         FileUtil.saveUser(newUser);
         users.add(newUser);
-        System.out.println("注册成功");
+        return Result.success("注册成功");
 
     }
 
-    private static User login(Scanner scanner, List<User> users){
+    private static Result<User> login(Scanner scanner, List<User> users){
         System.out.print("请输入用户名：");
         String username = scanner.nextLine().trim();
 
@@ -89,7 +89,7 @@ public class SystemMain {
             throw new PasswordIncorrectException("密码错误");
         }
 
-        return user;
+        return Result.success("登录成功",user);
 
     }
 
@@ -412,20 +412,22 @@ public class SystemMain {
             try{
                 switch(choice){
                     case "1":
-                        User user = login(scanner, users);
-
-                        if ("admin".equals(user.getRole())) {
-                            System.out.println("管理员登录成功");
-                            try {
-                                showAdminMenu(scanner, resources,user);
-                            } catch (IOException e) {
-                                System.out.println("资源数据保存失败，请稍后重试");
+                        Result<User> loginResult = login(scanner,users);
+                        if(loginResult.isSuccess()){
+                            User user = loginResult.getData();
+                            if ("admin".equals(user.getRole())) {
+                                System.out.println("管理员登录成功");
+                                try {
+                                    showAdminMenu(scanner, resources,user);
+                                } catch (IOException e) {
+                                    System.out.println("资源数据保存失败，请稍后重试");
+                                }
+                            } else if ("student".equals(user.getRole())) {
+                                System.out.println("学生登录成功");
+                                showStudentMenu(scanner,resources);
+                            } else {
+                                System.out.println("未知角色，无法进入系统");
                             }
-                        } else if ("student".equals(user.getRole())) {
-                            System.out.println("学生登录成功");
-                            showStudentMenu(scanner,resources);
-                        } else {
-                            System.out.println("未知角色，无法进入系统");
                         }
                         break;
                     case "2":
