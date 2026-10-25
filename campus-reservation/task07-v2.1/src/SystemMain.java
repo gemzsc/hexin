@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 public class SystemMain {
 
@@ -113,6 +112,26 @@ public class SystemMain {
             }
         }
         return null;
+
+
+    }
+
+    private static Result<List<CampusResource>> queryAllResources(
+            List<CampusResource> resources) {
+        return Result.success("查询成功", resources);
+    }
+
+    private static Result<List<CampusResource>> queryAvailableResources(
+            List<CampusResource> resources) {
+        List<CampusResource> availableResources = new ArrayList<>();
+
+        for(CampusResource resource : resources){
+            if("AVAILABLE".equals(resource.getStatus())){
+                availableResources.add(resource);
+            }
+        }
+
+        return Result.success("查询成功", availableResources);
     }
 
     private static void showAdminMenu(Scanner scanner,List<CampusResource> resources,User user) throws IOException{
@@ -128,16 +147,49 @@ public class SystemMain {
 
             switch (choice) {
                 case "1":
-                    addResource(scanner, resources,user);
+                    Result<CampusResource> addResult;
+                    try {
+                        addResult = addResource(scanner, resources, user);
+                    } catch (BusinessException e) {
+                        addResult = Result.fail(e.getMessage());
+                    } catch (IOException e) {
+                        addResult = Result.fail("资源数据保存失败，请稍后重试");
+                    }
+
+                    System.out.println(addResult.getMsg());
+                    if (addResult.isSuccess()) {
+                        System.out.println("资源 ID：" + addResult.getData().getId());
+                    }
                     break;
                 case "2":
-                    printResources(resources);
+                    Result<List<CampusResource>> result = queryAllResources(resources);
+                    if (result.isSuccess()) {
+                        printResources(result.getData());
+                    } else {
+                        System.out.println(result.getMsg());
+                    }
                     break;
                 case "3":
-                    updateResource(scanner,resources,user);
+                    Result<Void> updateResult;
+                    try {
+                        updateResult = updateResource(scanner, resources, user);
+                    } catch (BusinessException e) {
+                        updateResult = Result.fail(e.getMessage());
+                    } catch (IOException e) {
+                        updateResult = Result.fail("资源数据保存失败，请稍后重试");
+                    }
+                    System.out.println(updateResult.getMsg());
                     break;
                 case "4":
-                    deleteResource(scanner,resources,user);
+                    Result<Void> deleteResult;
+                    try {
+                        deleteResult = deleteResource(scanner, resources, user);
+                    } catch (BusinessException e) {
+                        deleteResult = Result.fail(e.getMessage());
+                    } catch (IOException e) {
+                        deleteResult = Result.fail("资源数据保存失败，请稍后重试");
+                    }
+                    System.out.println(deleteResult.getMsg());
                     break;
                 case "0":
                     return;
@@ -164,15 +216,12 @@ public class SystemMain {
 
             switch (choice) {
                 case "1":
-                    List<CampusResource> avaliableResources = new ArrayList<>();
-
-                    for(CampusResource resource : resources){
-                        if("AVAILABLE".equals(resource.getStatus())){
-                            avaliableResources.add(resource);
-                        }
+                    Result<List<CampusResource>> result = queryAvailableResources(resources);
+                    if (result.isSuccess()) {
+                        printResources(result.getData());
+                    } else {
+                        System.out.println(result.getMsg());
                     }
-
-                    printResources(avaliableResources);
                     break;
                 case "0":
                     return;
@@ -193,7 +242,7 @@ public class SystemMain {
         }
     }
 
-    private static void addResource(
+    private static Result<CampusResource> addResource(
             Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
                 requireAdmin(currentUser);
 
@@ -247,7 +296,7 @@ public class SystemMain {
                 resources.clear();
                 resources.addAll(updated);
 
-                System.out.println("资源新增成功，资源 ID：" + id);
+                return Result.success("资源新增成功",resource);
     }
 
     public static CampusResource findResourceById(
@@ -282,7 +331,7 @@ public class SystemMain {
         return resource;
     }
 
-    private static void updateResource(
+    private static Result<Void> updateResource(
             Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
         requireAdmin(currentUser);
 
@@ -352,8 +401,7 @@ public class SystemMain {
         }
 
         if(targetIndex == -1){
-            System.out.println("资源不存在");
-            return;
+            return Result.fail("资源不存在");
         }
 
         updated.set(targetIndex,changed);
@@ -361,10 +409,10 @@ public class SystemMain {
         FileUtil.saveResources(updated);
         resources.clear();
         resources.addAll(updated);
-        System.out.println("资源修改成功");
+        return Result.success("资源修改成功");
     }
 
-    private static  void deleteResource(
+    private static  Result<Void> deleteResource(
             Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
         requireAdmin(currentUser);
 
@@ -375,13 +423,16 @@ public class SystemMain {
         int targetIndex = findResourceIndexById(resources, target.getId());
 
         List<CampusResource> updated = new ArrayList<>(resources);
+        if (targetIndex == -1) {
+            return Result.fail("资源不存在");
+        }
         updated.remove(targetIndex);
 
         FileUtil.saveResources(updated);
 
         resources.clear();
         resources.addAll(updated);
-        System.out.println("资源删除成功");
+        return Result.success("资源删除成功");
     }
 
     public static void main(String[] args) {
@@ -419,7 +470,7 @@ public class SystemMain {
                             loginResult = Result.fail(e.getMessage());
                         }
                         if(!loginResult.isSuccess()){
-                            System.out.print(loginResult.getMsg());
+                            System.out.println(loginResult.getMsg());
                             break;
                         }
 
