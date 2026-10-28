@@ -4,7 +4,7 @@ import java.util.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
-
+import java.util.stream.IntStream;
 
 public class SystemMain {
 
@@ -373,13 +373,16 @@ public class SystemMain {
 
     private static int findResourceIndexById(
             List<CampusResource> resources, String id) {
-        for (int i = 0; i < resources.size(); i++) {
-            CampusResource resource = resources.get(i);
-            if (resource != null && id.equals(resource.getId())) {
-                return i;
-            }
+
+        if (resources == null || id == null) {
+            return -1;
         }
-        return -1;
+
+        return IntStream.range(0, resources.size())
+                .filter(index -> resources.get(index) != null
+                        && id.equals(resources.get(index).getId()))
+                .findFirst()
+                .orElse(-1);
     }
 
     private static CampusResource requireResourceById(
@@ -448,20 +451,13 @@ public class SystemMain {
         );
 
         List<CampusResource> updated = new ArrayList<>(resources);
+        int targetIndex = findResourceIndexById(updated, id);
 
-        int targetIndex = -1;
-        for(int i=0;i < updated.size();i++){
-            if(id.equals(updated.get(i).getId())){
-                targetIndex = i;
-                break;
-            }
-        }
-
-        if(targetIndex == -1){
+        if (targetIndex == -1) {
             return Result.fail("资源不存在");
         }
 
-        updated.set(targetIndex,changed);
+        updated.set(targetIndex, changed);
 
         FileUtil.saveResources(updated);
         resources.clear();
@@ -479,10 +475,11 @@ public class SystemMain {
         CampusResource target = requireResourceById(resources, id);
         int targetIndex = findResourceIndexById(resources, target.getId());
 
-        List<CampusResource> updated = new ArrayList<>(resources);
         if (targetIndex == -1) {
             return Result.fail("资源不存在");
         }
+
+        List<CampusResource> updated = new ArrayList<>(resources);
         updated.remove(targetIndex);
 
         FileUtil.saveResources(updated);
