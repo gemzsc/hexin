@@ -140,6 +140,10 @@ public class SystemMain {
 
     private  static Result<List<CampusResource>> searchResourceByName(
             List<CampusResource> resources,String keyword){
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return Result.fail("搜索关键词不能为空");
+        }
+
         String normalizeKeyword = keyword.trim().toLowerCase();
 
         List<CampusResource> matched = resources.stream()
@@ -159,6 +163,8 @@ public class SystemMain {
             System.out.println("2. 查看全部资源");
             System.out.println("3. 修改资源");
             System.out.println("4. 删除资源");
+            System.out.println("5. 按名称搜索资源");
+            System.out.println("6. 按 ID 查询资源");
             System.out.println("0. 返回主菜单");
 
             String choice = scanner.nextLine();
@@ -209,6 +215,29 @@ public class SystemMain {
                         deleteResult = Result.fail("资源数据保存失败，请稍后重试");
                     }
                     System.out.println(deleteResult.getMsg());
+                    break;
+                case "5":
+                    System.out.print("请输入资源名称关键词：");
+                    String keyword = scanner.nextLine();
+
+                    Result<List<CampusResource>> searchResult =
+                            searchResourceByName(resources, keyword);
+
+                    System.out.println(searchResult.getMsg());
+                    if (searchResult.isSuccess()) {
+                        printResources(searchResult.getData());
+                    }
+                    break;
+                case "6":
+                    System.out.print("请输入资源 ID：");
+                    String id = scanner.nextLine().trim();
+
+                    Result<CampusResource> idResult = queryResourceById(resources, id);
+                    System.out.println(idResult.getMsg());
+
+                    if (idResult.isSuccess()) {
+                        System.out.println(idResult.getData());
+                    }
                     break;
                 case "0":
                     return;
@@ -330,6 +359,16 @@ public class SystemMain {
                 .filter(resource -> resource != null
                         && id.equals(resource.getId()))
                 .findFirst();
+    }
+
+    public static Result<CampusResource> queryResourceById(
+            List<CampusResource> resources, String id) {
+        Optional<CampusResource> found = findResourceOptional(resources, id);
+
+        if (found.isPresent()) {
+            return Result.success("查询成功", found.get());
+        }
+        return Result.fail("未找到该 ID 对应的资源");
     }
 
     private static int findResourceIndexById(
