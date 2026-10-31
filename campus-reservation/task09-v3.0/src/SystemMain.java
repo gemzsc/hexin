@@ -169,12 +169,14 @@ public class SystemMain {
             System.out.println("6. 按 ID 查询资源");
             System.out.println("7. 查询全部预约");
             System.out.println("8. 按条件查询预约");
+            System.out.println("9. 审核通过预约");
+            System.out.println("10. 驳回预约");
             System.out.println("0. 返回主菜单");
 
             String choice = scanner.nextLine();
 
             switch (choice) {
-                case "1":
+                case "1": {
                     Result<CampusResource> addResult;
                     try {
                         addResult = addResource(scanner, resources, user);
@@ -189,7 +191,8 @@ public class SystemMain {
                         System.out.println("资源 ID：" + addResult.getData().getId());
                     }
                     break;
-                case "2":
+                }
+                case "2": {
                     Result<List<CampusResource>> result = queryAllResources(resources);
                     if (result.isSuccess()) {
                         System.out.println(result.getMsg());
@@ -198,7 +201,8 @@ public class SystemMain {
                         System.out.println(result.getMsg());
                     }
                     break;
-                case "3":
+                }
+                case "3": {
                     Result<Void> updateResult;
                     try {
                         updateResult = updateResource(scanner, resources, user);
@@ -209,10 +213,11 @@ public class SystemMain {
                     }
                     System.out.println(updateResult.getMsg());
                     break;
-                case "4":
+                }
+                case "4": {
                     Result<Void> deleteResult;
                     try {
-                        deleteResult = deleteResource(scanner, resources, user);
+                        deleteResult = deleteResource(scanner, resources, records, user);
                     } catch (BusinessException e) {
                         deleteResult = Result.fail(e.getMessage());
                     } catch (IOException e) {
@@ -220,7 +225,8 @@ public class SystemMain {
                     }
                     System.out.println(deleteResult.getMsg());
                     break;
-                case "5":
+                }
+                case "5": {
                     System.out.print("请输入资源名称关键词：");
                     String keyword = scanner.nextLine();
 
@@ -232,7 +238,8 @@ public class SystemMain {
                         printResources(searchResult.getData());
                     }
                     break;
-                case "6":
+                }
+                case "6": {
                     System.out.print("请输入资源 ID：");
                     String id = scanner.nextLine().trim();
 
@@ -243,6 +250,7 @@ public class SystemMain {
                         System.out.println(idResult.getData());
                     }
                     break;
+                }
                 case "7": {
                     Result<List<ReserveRecord>> reserveResult =
                             queryAllReserves(records, user);
@@ -293,6 +301,36 @@ public class SystemMain {
                         System.out.println(reserveResult.getMsg());
                         printReserveRecords(reserveResult.getData());
                     }
+                    break;
+                }
+                case "9": {
+                    System.out.print("请输入要通过的预约 ID：");
+                    String recordId = scanner.nextLine().trim();
+
+                    try {
+                        Result<Void> result =
+                                approveReserve(records, resources, user, recordId);
+                        System.out.println(result.getMsg());
+                    } catch (BusinessException e) {
+                        System.out.println(e.getMessage());
+                    } catch (IOException e) {
+                        System.out.println("预约或资源数据保存失败");
+                    }
+                    break;
+                }
+                case "10": {
+                    System.out.print("请输入要驳回的预约 ID：");
+                    String recordId = scanner.nextLine().trim();
+
+                    try {
+                        Result<Void> result = rejectReserve(records, user, recordId);
+                        System.out.println(result.getMsg());
+                    } catch (BusinessException e) {
+                        System.out.println(e.getMessage());
+                    } catch (IOException e) {
+                        System.out.println("预约数据保存失败");
+                    }
+                    break;
                 }
                 case "0":
                     return;
@@ -384,6 +422,21 @@ public class SystemMain {
                         }
                     }else {
                         System.out.println(reserveResult.getMsg());
+                    }
+                    break;
+                }
+                case "4": {
+                    System.out.print("请输入要取消的预约 ID：");
+                    String recordId = scanner.nextLine().trim();
+
+                    try {
+                        Result<Void> result =
+                                cancelReserve(records, resources, user, recordId);
+                        System.out.println(result.getMsg());
+                    } catch (BusinessException e) {
+                        System.out.println(e.getMessage());
+                    } catch (IOException e) {
+                        System.out.println("预约或资源数据保存失败");
                     }
                     break;
                 }
@@ -581,13 +634,23 @@ public class SystemMain {
     }
 
     private static  Result<Void> deleteResource(
-            Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
+            Scanner scanner,List<CampusResource> resources,List<ReserveRecord> records,User currentUser) throws IOException{
         requireAdmin(currentUser);
 
         System.out.print("请输入要删除的资源 ID：");
         String id = scanner.nextLine().trim();
 
         CampusResource target = requireResourceById(resources, id);
+
+        boolean hasPassedReserve = records.stream()
+                .filter(r -> r != null)
+                .anyMatch(r -> id.equals(r.getResourceId())
+                        && r.getStatus() == ReserveStatus.PASS);
+
+        if (hasPassedReserve) {
+            throw new BusinessException("该资源存在已通过预约，不能删除");
+        }
+
         int targetIndex = findResourceIndexById(resources, target.getId());
 
         if (targetIndex == -1) {
@@ -712,6 +775,178 @@ public class SystemMain {
         records.addAll(updated);
 
         return Result.success("预约申请已提交，等待管理员审核", newRecord);
+    }
+
+    private static Result<Void> approveReserve(
+            List<ReserveRecord> records,
+            List<CampusResource> resources,
+            User currentUser,
+            String recordId) throws IOException {
+
+        requireAdmin(currentUser);
+
+        ReserveRecord oldRecord = findReserveOptional(records, recordId)
+                .orElseThrow(() -> new BusinessException("预约记录不存在"));
+
+        if (oldRecord.getStatus() != ReserveStatus.PENDING) {
+            throw new BusinessException("只有待审核预约才能通过");
+        }
+
+        CampusResource oldResource =
+                requireResourceById(resources, oldRecord.getResourceId());
+
+        if (!"AVAILABLE".equals(oldResource.getStatus())) {
+            throw new BusinessException("关联资源当前不可用");
+        }
+
+        // 复制集合后，用新对象替换预约记录，避免浅拷贝提前改动原记录
+        List<ReserveRecord> updatedRecords = new ArrayList<>(records);
+        int recordIndex = updatedRecords.indexOf(oldRecord);
+
+        ReserveRecord passedRecord = new ReserveRecord(
+                oldRecord.getRecordId(),
+                oldRecord.getResourceId(),
+                oldRecord.getApplicantUsername(),
+                oldRecord.getApplyTime(),
+                oldRecord.getReserveStartTime(),
+                oldRecord.getReserveEndTime(),
+                ReserveStatus.PASS,
+                oldRecord.getRemark()
+        );
+        updatedRecords.set(recordIndex, passedRecord);
+
+        List<CampusResource> updatedResources = new ArrayList<>(resources);
+        int resourceIndex = updatedResources.indexOf(oldResource);
+
+        CampusResource occupiedResource = new CampusResource(
+                oldResource.getId(),
+                oldResource.getName(),
+                oldResource.getType(),
+                "OCCUPIED",
+                oldResource.getLocation(),
+                oldResource.getDescription()
+        );
+        updatedResources.set(resourceIndex, occupiedResource);
+
+        FileUtil.saveReserveRecords(updatedRecords);
+        FileUtil.saveResources(updatedResources);
+
+        // 两次保存都成功后，才替换内存列表
+        records.clear();
+        records.addAll(updatedRecords);
+        resources.clear();
+        resources.addAll(updatedResources);
+
+        return Result.success("预约审核通过，资源已设为占用");
+    }
+
+    private static Result<Void> rejectReserve(
+            List<ReserveRecord> records,
+            User currentUser,
+            String recordId) throws IOException {
+
+        requireAdmin(currentUser);
+
+        ReserveRecord oldRecord = findReserveOptional(records, recordId)
+                .orElseThrow(() -> new BusinessException("预约记录不存在"));
+
+        if (oldRecord.getStatus() != ReserveStatus.PENDING) {
+            throw new BusinessException("只有待审核预约才能驳回");
+        }
+
+        List<ReserveRecord> updatedRecords = new ArrayList<>(records);
+        int index = updatedRecords.indexOf(oldRecord);
+
+        ReserveRecord rejectedRecord = new ReserveRecord(
+                oldRecord.getRecordId(),
+                oldRecord.getResourceId(),
+                oldRecord.getApplicantUsername(),
+                oldRecord.getApplyTime(),
+                oldRecord.getReserveStartTime(),
+                oldRecord.getReserveEndTime(),
+                ReserveStatus.REJECT,
+                oldRecord.getRemark()
+        );
+        updatedRecords.set(index, rejectedRecord);
+
+        FileUtil.saveReserveRecords(updatedRecords);
+
+        records.clear();
+        records.addAll(updatedRecords);
+
+        return Result.success("预约已驳回");
+    }
+
+    private static Result<Void> cancelReserve(
+            List<ReserveRecord> records,
+            List<CampusResource> resources,
+            User currentUser,
+            String recordId) throws IOException {
+
+        requireStudent(currentUser);
+
+        ReserveRecord oldRecord = findReserveOptional(records, recordId)
+                .orElseThrow(() -> new BusinessException("预约记录不存在"));
+
+        if (!currentUser.getUsername().equals(oldRecord.getApplicantUsername())) {
+            throw new BusinessException("只能取消自己的预约");
+        }
+
+        ReserveStatus oldStatus = oldRecord.getStatus();
+        if (oldStatus != ReserveStatus.PENDING
+                && oldStatus != ReserveStatus.PASS) {
+            throw new BusinessException("当前状态不允许取消预约");
+        }
+
+        ReserveRecord cancelledRecord = new ReserveRecord(
+                oldRecord.getRecordId(),
+                oldRecord.getResourceId(),
+                oldRecord.getApplicantUsername(),
+                oldRecord.getApplyTime(),
+                oldRecord.getReserveStartTime(),
+                oldRecord.getReserveEndTime(),
+                ReserveStatus.CANCEL,
+                oldRecord.getRemark()
+        );
+
+        List<ReserveRecord> updatedRecords = new ArrayList<>(records);
+        updatedRecords.set(updatedRecords.indexOf(oldRecord), cancelledRecord);
+
+        // PENDING 取消只改预约记录；PASS 取消还要释放资源
+        CampusResource releasedResource = null;
+        List<CampusResource> updatedResources = null;
+
+        if (oldStatus == ReserveStatus.PASS) {
+            CampusResource oldResource =
+                    requireResourceById(resources, oldRecord.getResourceId());
+
+            releasedResource = new CampusResource(
+                    oldResource.getId(),
+                    oldResource.getName(),
+                    oldResource.getType(),
+                    "AVAILABLE",
+                    oldResource.getLocation(),
+                    oldResource.getDescription()
+            );
+
+            updatedResources = new ArrayList<>(resources);
+            updatedResources.set(updatedResources.indexOf(oldResource), releasedResource);
+        }
+
+        FileUtil.saveReserveRecords(updatedRecords);
+        if (oldStatus == ReserveStatus.PASS) {
+            FileUtil.saveResources(updatedResources);
+        }
+
+        records.clear();
+        records.addAll(updatedRecords);
+
+        if (oldStatus == ReserveStatus.PASS) {
+            resources.clear();
+            resources.addAll(updatedResources);
+        }
+
+        return Result.success("预约已取消");
     }
 
     private static Optional<ReserveRecord> findReserveOptional(
