@@ -15,7 +15,7 @@ public class ReserveRecord {
     public ReserveRecord(String recordId,String resourceId,String applicantUsername
                             ,LocalDateTime applyTime,LocalDateTime reserveStartTime,LocalDateTime reserveEndTime,ReserveStatus status,String remark){
         this.recordId = recordId;
-        this.recordId = resourceId;
+        this.resourceId = resourceId;
         this.applicantUsername = applicantUsername;
         this.applyTime = applyTime;
         this.reserveStartTime = reserveStartTime;
@@ -44,7 +44,7 @@ public class ReserveRecord {
         return applicantUsername;
     }
 
-    public void setApplicantusername(String applicantUsername){
+    public void setApplicantUsername(String applicantUsername){
         this.applicantUsername = applicantUsername;
     }
 
@@ -66,6 +66,10 @@ public class ReserveRecord {
 
     public LocalDateTime getReserveEndTime(){
         return reserveEndTime;
+    }
+
+    public void setReserveEndTime(LocalDateTime reserveEndTime){
+        this.reserveEndTime = reserveEndTime;
     }
 
     public ReserveStatus getStatus() {
