@@ -1,10 +1,12 @@
 import exception.*;
 
+import java.io.File;
 import java.util.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.time.format.DateTimeParseException;
 
 public class SystemMain {
 
@@ -156,7 +158,7 @@ public class SystemMain {
         return Result.success("查询成功",matched);
     }
 
-    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources,User user) throws IOException{
+    private static void showAdminMenu(Scanner scanner,List<CampusResource> resources,List<ReserveRecord> records,User user) throws IOException{
         while (true) {
             System.out.println("\n管理员资源菜单");
             System.out.println("1. 新增资源");
@@ -165,6 +167,8 @@ public class SystemMain {
             System.out.println("4. 删除资源");
             System.out.println("5. 按名称搜索资源");
             System.out.println("6. 按 ID 查询资源");
+            System.out.println("7. 查询全部预约");
+            System.out.println("8. 按条件查询预约");
             System.out.println("0. 返回主菜单");
 
             String choice = scanner.nextLine();
@@ -239,6 +243,57 @@ public class SystemMain {
                         System.out.println(idResult.getData());
                     }
                     break;
+                case "7": {
+                    Result<List<ReserveRecord>> reserveResult =
+                            queryAllReserves(records, user);
+
+                    if (reserveResult.isSuccess()) {
+                        if (reserveResult.getData().isEmpty()) {
+                            System.out.println("暂无预约记录");
+                        } else {
+                            System.out.println(reserveResult.getMsg());
+                            printReserveRecords(reserveResult.getData());
+                        }
+                    } else {
+                        System.out.println(reserveResult.getMsg());
+                    }
+                    break;
+                }
+                case "8":{
+                    System.out.print("资源 ID（回车表示不限）：");
+                    String resourceId = scanner.nextLine().trim();
+
+                    System.out.print("申请人账号（回车表示不限）：");
+                    String applicant = scanner.nextLine().trim();
+
+                    System.out.print("预约状态 PENDING/PASS/REJECT/CANCEL（回车表示不限）：");
+                    String statusInput = scanner.nextLine().trim();
+
+                    ReserveStatus parsedStatus = null;
+                    if (!statusInput.isEmpty()) {
+                        try {
+                            parsedStatus = ReserveStatus.valueOf(statusInput.toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                            System.out.println("状态只能是 PENDING、PASS、REJECT 或 CANCEL");
+                            break;
+                        }
+                    }
+
+                    final ReserveStatus statusFilter = parsedStatus;
+
+                    Result<List<ReserveRecord>> reserveResult =
+                            queryReservesByCondition(
+                                    records, user, resourceId, applicant, statusFilter);
+
+                    if (!reserveResult.isSuccess()) {
+                        System.out.println(reserveResult.getMsg());
+                    } else if (reserveResult.getData().isEmpty()) {
+                        System.out.println("没有符合条件的预约");
+                    } else {
+                        System.out.println(reserveResult.getMsg());
+                        printReserveRecords(reserveResult.getData());
+                    }
+                }
                 case "0":
                     return;
                 default:
@@ -254,16 +309,19 @@ public class SystemMain {
         }
     }
 
-    private static void showStudentMenu(Scanner scanner,List<CampusResource> resources) {
+    private static void showStudentMenu(Scanner scanner,List<CampusResource> resources,List<ReserveRecord> records,User user) {
         while (true) {
             System.out.println("\n学生资源菜单");
             System.out.println("1. 查看可预约资源");
+            System.out.println("2. 提交预约申请");
+            System.out.println("3. 查询个人预约");
+            System.out.println("4. 取消预约");
             System.out.println("0. 返回主菜单");
 
             String choice = scanner.nextLine();
 
             switch (choice) {
-                case "1":
+                case "1": {
                     Result<List<CampusResource>> result = queryAvailableResources(resources);
                     if (result.isSuccess()) {
                         System.out.println(result.getMsg());
@@ -272,6 +330,63 @@ public class SystemMain {
                         System.out.println(result.getMsg());
                     }
                     break;
+                }
+                case "2": {
+                    System.out.print("请输入资源 ID：");
+                    String resourceId = scanner.nextLine().trim();
+
+                    System.out.print("请输入预约开始时间（yyyy-MM-ddTHH:mm）：");
+                    String startInput = scanner.nextLine().trim();
+
+                    System.out.print("请输入预约结束时间（yyyy-MM-ddTHH:mm）：");
+                    String endInput = scanner.nextLine().trim();
+
+                    System.out.print("请输入预约备注（可留空）：");
+                    String remark = scanner.nextLine().trim();
+
+                    try {
+                        LocalDateTime start = LocalDateTime.parse(startInput);
+                        LocalDateTime end = LocalDateTime.parse(endInput);
+
+                        Result<ReserveRecord> reserveResult = submitReserve(
+                                records,
+                                resources,
+                                user,
+                                resourceId,
+                                start,
+                                end,
+                                remark
+                        );
+
+                        System.out.println(reserveResult.getMsg());
+
+                        if (reserveResult.isSuccess()) {
+                            System.out.println("预约记录：" + reserveResult.getData());
+                        }
+                    } catch (DateTimeParseException e) {
+                        System.out.println("时间格式错误，请按 yyyy-MM-ddTHH:mm 输入，例如 2026-11-02T09:00");
+                    } catch (BusinessException e) {
+                        System.out.println(e.getMessage());
+                    } catch (IOException e) {
+                        System.out.println("预约数据保存失败，请稍后重试");
+                    }
+
+                    break;
+                }
+                case "3": {
+                    Result<List<ReserveRecord>> reserveResult = queryMyReserve(records, user);
+                    if(reserveResult.isSuccess()){
+                        if(reserveResult.getData().isEmpty()){
+                            System.out.println("暂无预约");
+                        }else {
+                            System.out.println(reserveResult.getMsg());
+                            printReserveRecords(reserveResult.getData());
+                        }
+                    }else {
+                        System.out.println(reserveResult.getMsg());
+                    }
+                    break;
+                }
                 case "0":
                     return;
                 default:
@@ -489,17 +604,153 @@ public class SystemMain {
         return Result.success("资源删除成功");
     }
 
+    private static Result<List<ReserveRecord>> queryMyReserve(List<ReserveRecord> records,User currentUser){
+        requireStudent(currentUser);
+
+        List<ReserveRecord> mine = records.stream()
+                .filter(r -> currentUser.getUsername()
+                        .equals(r.getApplicantUsername()))
+                .collect(Collectors.toList());
+
+        return Result.success("查询成功",mine);
+
+    }
+
+    private static Result<List<ReserveRecord>> queryAllReserves(
+            List<ReserveRecord> records, User currentUser) {
+        requireAdmin(currentUser);
+        return Result.success("查询成功", records);
+    }
+
+    private static Result<List<ReserveRecord>> queryReservesByCondition(
+            List<ReserveRecord> records,
+            User currentUser,
+            String resourceId,
+            String applicantUsername,
+            ReserveStatus statusFilter) {
+
+        requireAdmin(currentUser);
+
+        List<ReserveRecord> matched = records.stream()
+                .filter(r -> r != null)
+                .filter(r -> resourceId == null || resourceId.trim().isEmpty()
+                        || resourceId.trim().equals(r.getResourceId()))
+                .filter(r -> applicantUsername == null
+                        || applicantUsername.trim().isEmpty()
+                        || applicantUsername.trim()
+                        .equals(r.getApplicantUsername()))
+                .filter(r -> statusFilter == null
+                        || statusFilter == r.getStatus())
+                .collect(Collectors.toList());
+
+        return Result.success("查询成功", matched);
+    }
+
+    private static Result<ReserveRecord> submitReserve(
+            List<ReserveRecord> records,
+            List<CampusResource> resources,
+            User currentUser,
+            String resourceId,
+            LocalDateTime start,
+            LocalDateTime end,
+            String remark) throws IOException {
+
+        requireStudent(currentUser);
+
+        if (records == null || resourceId == null
+                || resourceId.trim().isEmpty()
+                || start == null || end == null) {
+            throw new EmptyParameterException("资源 ID 和预约时间不能为空");
+        }
+
+        if (!start.isBefore(end)) {
+            throw new BusinessException("预约开始时间必须早于结束时间");
+        }
+
+        if (end.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("预约结束时间不能早于当前时间");
+        }
+
+        // 复用已有的资源查找方法；资源不存在时由它抛出业务异常
+        CampusResource resource = requireResourceById(resources, resourceId);
+
+        if (!"AVAILABLE".equals(resource.getStatus())) {
+            throw new BusinessException("该资源当前不可预约");
+        }
+
+        boolean conflict = records.stream()
+                .filter(record -> record != null)
+                .filter(record -> resourceId.equals(record.getResourceId()))
+                .filter(record -> record.getStatus() == ReserveStatus.PASS)
+                .anyMatch(record ->
+                        start.isBefore(record.getReserveEndTime())
+                                && end.isAfter(record.getReserveStartTime()));
+
+        if (conflict) {
+            throw new BusinessException("预约时间与已有预约冲突");
+        }
+
+        String recordId = UUID.randomUUID().toString();
+
+        ReserveRecord newRecord = new ReserveRecord(
+                recordId,
+                resourceId,
+                currentUser.getUsername(),
+                LocalDateTime.now(),
+                start,
+                end,
+                ReserveStatus.PENDING,
+                remark == null ? "" : remark
+        );
+
+        // 先保存候选集合；保存成功后才更新内存集合
+        List<ReserveRecord> updated = new ArrayList<>(records);
+        updated.add(newRecord);
+        FileUtil.saveReserveRecords(updated);
+
+        records.clear();
+        records.addAll(updated);
+
+        return Result.success("预约申请已提交，等待管理员审核", newRecord);
+    }
+
+    private static Optional<ReserveRecord> findReserveOptional(
+            List<ReserveRecord> records, String id){
+        if (id == null) {
+            return Optional.empty();
+        }
+
+        return records.stream()
+                .filter(r ->r!= null && id.equals(r.getRecordId()))
+                .findFirst();
+    }
+
+    private static void requireStudent(User currentUser){
+        if(currentUser == null
+                ||!"student".equals(currentUser.getRole())){
+            throw new BusinessException("无权限执行学生预约操作");
+        }
+    }
+
+    private static void printReserveRecords(List<ReserveRecord> records) {
+        for (ReserveRecord record : records) {
+            System.out.println(record);
+        }
+    }
+
     public static void main(String[] args) {
         //创建Scanner
         Scanner scanner = new Scanner(System.in);
 
         List<User> users;
         List<CampusResource> resources;
+        List<ReserveRecord> records;
 
         try {
             users = FileUtil.loadUsers();
             ensureAdminExists(users);
             resources = FileUtil.loadResources();
+            records = FileUtil.loadReserveRecords();
         } catch (IOException e) {
             System.out.println("读取用户或资源数据失败，程序无法启动");
             scanner.close();
@@ -532,13 +783,13 @@ public class SystemMain {
                         if ("admin".equals(user.getRole())) {
                             System.out.println("管理员登录成功");
                             try {
-                                showAdminMenu(scanner, resources,user);
+                                showAdminMenu(scanner, resources,records,user);
                             } catch (IOException e) {
                                 System.out.println("资源数据保存失败，请稍后重试");
                             }
                         } else if ("student".equals(user.getRole())) {
                             System.out.println("学生登录成功");
-                            showStudentMenu(scanner,resources);
+                            showStudentMenu(scanner,resources,records,user);
                         } else {
                             System.out.println("未知角色，无法进入系统");
                         }
