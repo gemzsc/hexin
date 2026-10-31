@@ -12,6 +12,7 @@ public class FileUtil {
     //资源文件格式: id|name|type|status|location|description
     private static final Path USER_FILE = Paths.get("user.txt");
     private static final Path RESOURCE_FILE = Paths.get("resource.txt");
+    private static final Path RESERVE_FILE = Paths.get("reserve.txt");
 
     public static void ensureUserFileExists() throws IOException{
         if (!Files.exists(USER_FILE)){
@@ -214,6 +215,126 @@ public class FileUtil {
                         + resource.getStatus() + "|"
                         + resource.getLocation() + "|"
                         + resource.getDescription();
+
+                writer.write(line);
+                writer.newLine();
+            }
+        }
+    }
+
+    public static void ensureReserveFileExists() throws IOException {
+        if (!Files.exists(RESERVE_FILE)) {
+            Files.createFile(RESERVE_FILE);
+        }
+    }
+
+    public static List<ReserveRecord> loadReserveRecords() throws IOException {
+        List<ReserveRecord> records = new ArrayList<>();
+        Set<String> recordIds = new HashSet<>();
+
+        ensureReserveFileExists();
+
+        try (BufferedReader reader =
+                     Files.newBufferedReader(RESERVE_FILE, StandardCharsets.UTF_8)) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                String[] fields = line.split("\\|", -1);
+
+                if (fields.length != 8) {
+                    System.out.println("跳过格式错误的预约数据：" + line);
+                    continue;
+                }
+
+                try {
+                    // 必填字段不能是空字符串；备注 fields[7] 可以为空
+                    if (fields[0].trim().isEmpty()
+                            || fields[1].trim().isEmpty()
+                            || fields[2].trim().isEmpty()) {
+                        System.out.println("跳过必要字段为空的预约数据：" + line);
+                        continue;
+                    }
+
+                    if (recordIds.contains(fields[0])) {
+                        System.out.println("跳过预约记录 ID 重复的数据：" + line);
+                        continue;
+                    }
+
+                    ReserveRecord record = new ReserveRecord(
+                            fields[0],
+                            fields[1],
+                            fields[2],
+                            LocalDateTime.parse(fields[3]),
+                            LocalDateTime.parse(fields[4]),
+                            LocalDateTime.parse(fields[5]),
+                            ReserveStatus.valueOf(fields[6]),
+                            fields[7]
+                    );
+
+                    records.add(record);
+                    recordIds.add(fields[0]);
+                } catch (RuntimeException e) {
+                    // 包含时间格式错误、状态枚举值非法等情况
+                    System.out.println("跳过无法解析的预约数据：" + line);
+                }
+            }
+        }
+
+        return records;
+    }
+
+    public static void saveReserveRecords(List<ReserveRecord> records)
+            throws IOException {
+        if (records == null) {
+            throw new IllegalArgumentException("预约记录集合不能为空");
+        }
+
+        // 写文件前先验证整批记录
+        for (ReserveRecord record : records) {
+            if (record == null
+                    || record.getRecordId() == null
+                    || record.getResourceId() == null
+                    || record.getApplicantUsername() == null
+                    || record.getApplyTime() == null
+                    || record.getReserveStartTime() == null
+                    || record.getReserveEndTime() == null
+                    || record.getStatus() == null
+                    || record.getRemark() == null) {
+                throw new IllegalArgumentException("预约记录信息不完整");
+            }
+
+            String[] fields = {
+                    record.getRecordId(),
+                    record.getResourceId(),
+                    record.getApplicantUsername(),
+                    record.getRemark()
+            };
+
+            for (String field : fields) {
+                if (field.contains("|")
+                        || field.contains("\n")
+                        || field.contains("\r")) {
+                    throw new IllegalArgumentException("预约记录字段包含非法字符");
+                }
+            }
+        }
+
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                RESERVE_FILE,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE)) {
+
+            for (ReserveRecord record : records) {
+                String line = record.getRecordId() + "|"
+                        + record.getResourceId() + "|"
+                        + record.getApplicantUsername() + "|"
+                        + record.getApplyTime() + "|"
+                        + record.getReserveStartTime() + "|"
+                        + record.getReserveEndTime() + "|"
+                        + record.getStatus().name() + "|"
+                        + record.getRemark();
 
                 writer.write(line);
                 writer.newLine();
