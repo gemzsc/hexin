@@ -205,7 +205,7 @@ public class SystemMain {
                 case "3": {
                     Result<Void> updateResult;
                     try {
-                        updateResult = updateResource(scanner, resources, user);
+                        updateResult = updateResource(scanner, resources, records,user);
                     } catch (BusinessException e) {
                         updateResult = Result.fail(e.getMessage());
                     } catch (IOException e) {
@@ -560,7 +560,7 @@ public class SystemMain {
     }
 
     private static Result<Void> updateResource(
-            Scanner scanner,List<CampusResource> resources,User currentUser) throws IOException{
+            Scanner scanner,List<CampusResource> resources,List<ReserveRecord> records,User currentUser) throws IOException{
         requireAdmin(currentUser);
 
         System.out.print("请输入要修改的资源 ID：");
@@ -600,6 +600,15 @@ public class SystemMain {
         if(!isValidResourceStatus(newStatus)){
             throw new BusinessException(
                     "资源状态只能是 AVAILABLE、OCCUPIED 或 DISABLED");
+        }
+
+        boolean hasPassedReserve = records.stream()
+                .filter(r -> r != null)
+                .anyMatch(r -> oldResource.getId().equals(r.getResourceId())
+                        && r.getStatus() == ReserveStatus.PASS);
+
+        if (hasPassedReserve && !"OCCUPIED".equals(newStatus)) {
+            throw new BusinessException("该资源存在已通过预约，状态不能改为可预约或停用");
         }
 
         String[] fields = {
@@ -717,6 +726,13 @@ public class SystemMain {
             LocalDateTime start,
             LocalDateTime end,
             String remark) throws IOException {
+        String safeRemark = remark == null ? "" : remark;
+
+        if (safeRemark.contains("|")
+                || safeRemark.contains("\n")
+                || safeRemark.contains("\r")) {
+            throw new BusinessException("预约备注不能包含 | 或换行符");
+        }
 
         requireStudent(currentUser);
 
