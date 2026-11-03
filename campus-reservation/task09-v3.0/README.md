@@ -1,6 +1,6 @@
 # 校园资源预约系统 V3.0
 
-本目录对应任务9“资源预约核心业务开发”。本版本基于任务8 V2.2 增量开发，保留登录注册、资源管理、Stream 查询、Result 统一返回和文件持久化，新增学生申请预约、管理员审核、学生取消及资源状态联动。本阶段业务仍集中在 SystemMain，三层架构重构安排在任务10。
+本目录对应任务9“资源预约核心业务开发”。本版本基于任务8 V2.2 增量开发，保留登录注册、资源管理、Stream 查询、entity.Result 统一返回和文件持久化，新增学生申请预约、管理员审核、学生取消及资源状态联动。本阶段业务仍集中在 SystemMain，三层架构重构安排在任务10。
 
 ## 功能与权限
 
@@ -35,12 +35,12 @@ task09-v3.0
 ├─ README.md
 └─ src
    ├─ SystemMain.java
-   ├─ User.java
-   ├─ CampusResource.java
-   ├─ ReserveRecord.java
-   ├─ ReserveStatus.java
-   ├─ Result.java
-   ├─ FileUtil.java
+   ├─ entity.User.java
+   ├─ entity.CampusResource.java
+   ├─ entity.ReserveRecord.java
+   ├─ entity.ReserveStatus.java
+   ├─ entity.Result.java
+   ├─ utils.FileUtil.java
    └─ exception
       ├─ BusinessException.java
       ├─ EmptyParameterException.java
@@ -50,10 +50,10 @@ task09-v3.0
 ```
 
 - SystemMain：程序入口、菜单、输入输出及当前版本业务流程。
-- User、CampusResource、ReserveRecord：承载用户、资源和预约数据。
-- ReserveStatus：PENDING、PASS、REJECT、CANCEL 四种预约状态。
-- Result<T>：封装业务结果、提示和返回数据。
-- FileUtil：用户、资源和预约文件读写。
+- entity.User、entity.CampusResource、entity.ReserveRecord：承载用户、资源和预约数据。
+- entity.ReserveStatus：PENDING、PASS、REJECT、CANCEL 四种预约状态。
+- entity.Result<T>：封装业务结果、提示和返回数据。
+- utils.FileUtil：用户、资源和预约文件读写。
 - exception：业务异常；交互处捕获并展示友好提示。
 
 ## 文件持久化
@@ -86,7 +86,7 @@ r001|room001|alice|2026-11-01T08:00|2026-11-02T09:00|2026-11-02T10:00|PENDING|�
 
 时间使用 LocalDateTime 的标准文本形式；枚举保存为 name()，读取时使用 valueOf()。split("\\|", -1) 保留末尾空备注。加载预约时检查字段数、必要字段、重复编号及时间和枚举格式，无法解析的记录提示后跳过。
 
-新增用户采用追加写入；资源和预约更新采用全量覆盖。准备变更时创建候选集合，修改记录使用新对象替换，保存成功后更新内存，避免浅拷贝提前改变原对象。IO 使用 try-with-resources 关闭流。Result 不写入文件。
+新增用户采用追加写入；资源和预约更新采用全量覆盖。准备变更时创建候选集合，修改记录使用新对象替换，保存成功后更新内存，避免浅拷贝提前改变原对象。IO 使用 try-with-resources 关闭流。entity.Result 不写入文件。
 
 ## 环境与运行
 
@@ -128,7 +128,7 @@ java -cp out SystemMain
 
 ## 设计要点与当前限制
 
-本次通过独立预约实体表达用户与资源的关联，以用户名、资源 ID 连接数据；使用枚举限定预约状态，通过业务条件控制状态流转。Stream、Lambda 用于筛选和冲突检查，Optional 表达按编号查找可能没有结果，业务入口沿用 Result 和自定义异常。
+本次通过独立预约实体表达用户与资源的关联，以用户名、资源 ID 连接数据；使用枚举限定预约状态，通过业务条件控制状态流转。Stream、Lambda 用于筛选和冲突检查，Optional 表达按编号查找可能没有结果，业务入口沿用 entity.Result 和自定义异常。
 
 预约和资源是可变对象。new ArrayList<>(原集合) 只复制容器，因此修改时构造新对象再替换候选集合元素，避免保存失败前原内存数据已被改变。
 

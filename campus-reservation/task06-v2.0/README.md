@@ -1,14 +1,14 @@
 # 校园资源预约系统 V2.0
 
-本目录保存校园资源预约系统任务6的增量版本。V2.0 基于 V1.4 的用户注册、登录、`List<User>` 内存管理、`user.txt` 文件持久化和自定义业务异常，新增校园资源实体、管理员资源管理、学生可预约资源查询及 `resource.txt` 文件持久化。项目继续采用控制台交互，尚未进行三层架构重构。
+本目录保存校园资源预约系统任务6的增量版本。V2.0 基于 V1.4 的用户注册、登录、`List<entity.User>` 内存管理、`user.txt` 文件持久化和自定义业务异常，新增校园资源实体、管理员资源管理、学生可预约资源查询及 `resource.txt` 文件持久化。项目继续采用控制台交互，尚未进行三层架构重构。
 
 ## 功能
 
 - 提供登录、注册和退出菜单；单次操作失败后仍可返回菜单继续使用。
-- 使用 `List<User>` 保存运行期用户对象。注册用户默认为 `student`，注册时间由 `LocalDateTime.now()` 记录；若用户文件中没有管理员账号，启动时自动创建 `admin / 123456`。
+- 使用 `List<entity.User>` 保存运行期用户对象。注册用户默认为 `student`，注册时间由 `LocalDateTime.now()` 记录；若用户文件中没有管理员账号，启动时自动创建 `admin / 123456`。
 - 注册时检查用户名、密码非空，密码长度至少为 6 位；拒绝重复用户名和包含文件分隔符 `|` 的输入。
 - 登录时检查用户名、密码非空，并区分用户不存在、密码错误和登录成功。
-- 使用 `List<CampusResource>` 保存运行期资源对象。资源包含 ID、名称、类型、状态、位置和描述。
+- 使用 `List<entity.CampusResource>` 保存运行期资源对象。资源包含 ID、名称、类型、状态、位置和描述。
 - 管理员可以新增、查看、修改和删除资源；新增时自动生成 UUID，初始状态为 `AVAILABLE`。
 - 修改资源时可按 ID 查找；输入空值可保留原字段，状态只允许 `AVAILABLE`、`OCCUPIED` 或 `DISABLED`。
 - 学生只能查询状态为 `AVAILABLE` 的资源，不能进入管理员资源管理菜单。
@@ -25,10 +25,10 @@
 task06-v2.0
 ├─ README.md
 └─ src
-   ├─ CampusResource.java
-   ├─ FileUtil.java
+   ├─ entity.CampusResource.java
+   ├─ utils.FileUtil.java
    ├─ SystemMain.java
-   ├─ User.java
+   ├─ entity.User.java
    └─ exception
       ├─ BusinessException.java
       ├─ EmptyParameterException.java
@@ -37,7 +37,7 @@ task06-v2.0
       └─ UserNotFoundException.java
 ```
 
-`SystemMain` 负责控制台输入、登录注册流程、角色菜单和资源操作；`User`、`CampusResource` 只承载数据；`FileUtil` 负责创建数据文件、解析记录和保存数据。资源管理操作会先构造待保存集合，写入成功后再更新内存集合。本阶段尚未进行三层架构重构。
+`SystemMain` 负责控制台输入、登录注册流程、角色菜单和资源操作；`entity.User`、`entity.CampusResource` 只承载数据；`utils.FileUtil` 负责创建数据文件、解析记录和保存数据。资源管理操作会先构造待保存集合，写入成功后再更新内存集合。本阶段尚未进行三层架构重构。
 
 ## 用户文件格式
 
@@ -82,7 +82,7 @@ javac -encoding UTF-8 -d out -sourcepath src src/SystemMain.java
 java -cp out SystemMain
 ```
 
-`javac` 会根据 `SystemMain.java` 中的引用，从 `src` 自动编译 `CampusResource`、`User`、`FileUtil` 和 `exception` 包内需要的类。也可以在 IntelliJ IDEA 中打开本目录并运行 `SystemMain.main`。运行配置的工作目录应设为 `task06-v2.0`。
+`javac` 会根据 `SystemMain.java` 中的引用，从 `src` 自动编译 `entity.CampusResource`、`entity.User`、`utils.FileUtil` 和 `exception` 包内需要的类。也可以在 IntelliJ IDEA 中打开本目录并运行 `SystemMain.main`。运行配置的工作目录应设为 `task06-v2.0`。
 
 ## 建议验收场景
 
@@ -102,8 +102,8 @@ java -cp out SystemMain
 
 ## 本次设计要点
 
-V1.4 只管理用户数据，无法维护校园资源。V2.0 新增 `CampusResource` 和资源集合，并依据用户角色提供不同菜单：管理员负责资源维护，学生只查询可预约资源。实体只承载数据，控制台流程仍集中在 `SystemMain`，为后续架构重构保留迭代基础。
+V1.4 只管理用户数据，无法维护校园资源。V2.0 新增 `entity.CampusResource` 和资源集合，并依据用户角色提供不同菜单：管理员负责资源维护，学生只查询可预约资源。实体只承载数据，控制台流程仍集中在 `SystemMain`，为后续架构重构保留迭代基础。
 
-资源文件读写集中在 `FileUtil`。保存资源时先检查整份待写集合，再打开并重写文件；资源操作也先保存新集合，成功后再替换内存数据，避免文件保存失败后内存状态仍显示操作成功。加载时跳过格式错误、状态非法或 ID 重复的记录，避免单条坏数据阻止其他有效资源加载。
+资源文件读写集中在 `utils.FileUtil`。保存资源时先检查整份待写集合，再打开并重写文件；资源操作也先保存新集合，成功后再替换内存数据，避免文件保存失败后内存状态仍显示操作成功。加载时跳过格式错误、状态非法或 ID 重复的记录，避免单条坏数据阻止其他有效资源加载。
 
 资源权限由角色菜单和资源管理方法中的管理员校验共同保证。预约记录尚未加入本版本，因此资源删除与预约记录的关联限制留待预约模块实现后补充。

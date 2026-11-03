@@ -1,14 +1,14 @@
 # 校园资源预约系统 V1.2
 
-本目录保存校园资源预约系统的第三个增量版本。V1.2 基于 V1.1 的注册、登录和输入校验功能，引入 User 实体类，将原来的账号密码映射升级为用户对象集合，增加角色与注册时间信息。当前版本用于练习面向对象封装、对象集合管理与单一职责，不包含文件持久化。
+本目录保存校园资源预约系统的第三个增量版本。V1.2 基于 V1.1 的注册、登录和输入校验功能，引入 entity.User 实体类，将原来的账号密码映射升级为用户对象集合，增加角色与注册时间信息。当前版本用于练习面向对象封装、对象集合管理与单一职责，不包含文件持久化。
 
 ## 功能
 
 - 提供登录、注册和退出菜单，操作后返回菜单。
-- 使用 `List<User>` 保存用户对象，底层使用 `ArrayList`。
+- 使用 `List<entity.User>` 保存用户对象，底层使用 `ArrayList`。
 - 每个用户包含用户名、密码、角色和注册时间四项信息。
 - 注册时检查用户名非空、密码非空且长度至少为 6 位，并拒绝重复用户名。
-- 注册成功时创建新的 User 对象，角色默认为 `student`，注册时间通过 `LocalDateTime.now()` 记录。
+- 注册成功时创建新的 entity.User 对象，角色默认为 `student`，注册时间通过 `LocalDateTime.now()` 记录。
 - 登录时检查用户是否存在及密码是否匹配；成功后提示学生登录成功，并展示用户名、角色和注册时间，不打印密码。
 - 用户名首尾空格会被去除，密码按输入原值保存和比较。
 
@@ -16,10 +16,10 @@
 
 ## 环境与运行
 
-需要 JDK 8，无第三方依赖。源码包括 `src/SystemMain.java` 和 `src/User.java`。在本目录打开终端执行：
+需要 JDK 8，无第三方依赖。源码包括 `src/SystemMain.java` 和 `src/entity.User.java`。在本目录打开终端执行：
 
 ```bash
-javac -encoding UTF-8 -d out src/SystemMain.java src/User.java
+javac -encoding UTF-8 -d out src/SystemMain.java src/entity.User.java
 java -cp out SystemMain
 ```
 
@@ -43,11 +43,11 @@ java -cp out SystemMain
 
 ## 本次设计要点
 
-User 类集中承载用户信息，四个字段均为 private，提供无参构造、全参构造及 getter、setter，体现封装。重写 toString 后可以直接打印对象的用户名、角色和注册时间，避免在输出内容中暴露密码。实体类不承担输入输出、注册查重或登录判断，业务流程继续由 SystemMain 组织，体现单一职责。
+entity.User 类集中承载用户信息，四个字段均为 private，提供无参构造、全参构造及 getter、setter，体现封装。重写 toString 后可以直接打印对象的用户名、角色和注册时间，避免在输出内容中暴露密码。实体类不承担输入输出、注册查重或登录判断，业务流程继续由 SystemMain 组织，体现单一职责。
 
-用户集合由 `HashMap<String, String>` 改为 `List<User>`，仍在菜单循环外创建，使注册、登录共享同一份运行期数据。每次注册成功都创建一个新的 User 对象，避免多条记录引用同一个被反复修改的对象。
+用户集合由 `HashMap<String, String>` 改为 `List<entity.User>`，仍在菜单循环外创建，使注册、登录共享同一份运行期数据。每次注册成功都创建一个新的 entity.User 对象，避免多条记录引用同一个被反复修改的对象。
 
-注册查重和登录共用 `findUserByUsername` 方法，通过遍历集合并使用 equals 比较用户名，找到时返回 User 对象，未找到时返回 null。登录先判断对象是否为空，再读取密码，避免空指针异常。List 不自动保证用户名唯一，因此注册时仍需显式查重。
+注册查重和登录共用 `findUserByUsername` 方法，通过遍历集合并使用 equals 比较用户名，找到时返回 entity.User 对象，未找到时返回 null。登录先判断对象是否为空，再读取密码，避免空指针异常。List 不自动保证用户名唯一，因此注册时仍需显式查重。
 
 与上一版本按键查询 HashMap 相比，本版本遍历 List 按用户名查找的时间复杂度为 O(n)。此处按任务要求采用 List，重点在于学习对象建模与集合管理，并非查询性能优化。
 

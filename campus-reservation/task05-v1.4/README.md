@@ -1,11 +1,11 @@
 # 校园资源预约系统 V1.4
 
-本目录保存校园资源预约系统任务5的增量版本。V1.4 基于 V1.3 的用户注册、登录、`List<User>` 内存管理和 `user.txt` 文件持久化，新增自定义业务异常，并在程序入口统一展示友好的错误提示。原有用户实体、文件格式和持久化流程继续沿用上一版。
+本目录保存校园资源预约系统任务5的增量版本。V1.4 基于 V1.3 的用户注册、登录、`List<entity.User>` 内存管理和 `user.txt` 文件持久化，新增自定义业务异常，并在程序入口统一展示友好的错误提示。原有用户实体、文件格式和持久化流程继续沿用上一版。
 
 ## 功能
 
 - 提供登录、注册和退出菜单；单次操作失败后仍可返回菜单继续使用。
-- 使用 `List<User>` 保存运行期的用户对象。注册用户默认为 `student`，注册时间由 `LocalDateTime.now()` 记录。
+- 使用 `List<entity.User>` 保存运行期的用户对象。注册用户默认为 `student`，注册时间由 `LocalDateTime.now()` 记录。
 - 注册时检查用户名、密码非空，密码长度至少为 6 位；拒绝重复用户名和包含文件分隔符 `|` 的输入。
 - 用户名首尾空格会被去除；密码按输入原值保存和比较。
 - 登录时检查用户名、密码非空，并区分用户不存在、密码错误和登录成功。成功后展示用户名、角色和注册时间，不打印密码。
@@ -19,9 +19,9 @@
 task05-v1.4
 ├─ README.md
 └─ src
-   ├─ FileUtil.java
+   ├─ utils.FileUtil.java
    ├─ SystemMain.java
-   ├─ User.java
+   ├─ entity.User.java
    └─ exception
       ├─ BusinessException.java
       ├─ EmptyParameterException.java
@@ -30,7 +30,7 @@ task05-v1.4
       └─ UserNotFoundException.java
 ```
 
-`SystemMain` 负责控制台输入、菜单、注册登录流程和入口异常处理；`User` 只承载用户数据；`FileUtil` 负责创建用户文件、解析记录和追加保存。四种具体业务异常均继承 `BusinessException`，入口捕获父类即可统一展示异常消息。本阶段尚未进行三层架构重构。
+`SystemMain` 负责控制台输入、菜单、注册登录流程和入口异常处理；`entity.User` 只承载用户数据；`utils.FileUtil` 负责创建用户文件、解析记录和追加保存。四种具体业务异常均继承 `BusinessException`，入口捕获父类即可统一展示异常消息。本阶段尚未进行三层架构重构。
 
 ## 用户文件格式
 
@@ -59,7 +59,7 @@ javac -encoding UTF-8 -d out -sourcepath src src/SystemMain.java
 java -cp out SystemMain
 ```
 
-`javac` 会根据 `SystemMain.java` 中的引用，从 `src` 自动编译 `User`、`FileUtil` 和 `exception` 包内需要的类。也可以在 IntelliJ IDEA 中打开本目录并运行 `SystemMain.main`。运行配置的工作目录应设为 `task05-v1.4`。
+`javac` 会根据 `SystemMain.java` 中的引用，从 `src` 自动编译 `entity.User`、`utils.FileUtil` 和 `exception` 包内需要的类。也可以在 IntelliJ IDEA 中打开本目录并运行 `SystemMain.main`。运行配置的工作目录应设为 `task05-v1.4`。
 
 ## 建议验收场景
 
@@ -83,6 +83,6 @@ java -cp out SystemMain
 
 V1.3 在注册、登录方法中直接打印错误提示，错误处理散落在不同分支。V1.4 用 `BusinessException` 及其子类表达业务失败，由 `main` 的菜单循环捕获并打印 `getMessage()`，因此一次业务失败不会结束程序，也不会向用户展示原生异常堆栈。
 
-业务错误与文件 IO 故障分开处理：用户名重复、用户不存在、密码错误和参数为空属于业务错误；读取或保存文件失败属于 IO 故障。注册时先保存文件，再将用户加入内存集合，避免保存失败后内存中出现未持久化的新用户。`FileUtil` 继续使用 try-with-resources 自动关闭字符流。
+业务错误与文件 IO 故障分开处理：用户名重复、用户不存在、密码错误和参数为空属于业务错误；读取或保存文件失败属于 IO 故障。注册时先保存文件，再将用户加入内存集合，避免保存失败后内存中出现未持久化的新用户。`utils.FileUtil` 继续使用 try-with-resources 自动关闭字符流。
 
 本版本保留控制台结构，为后续迭代逐步重构留下空间。

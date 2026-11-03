@@ -1,11 +1,11 @@
 # 校园资源预约系统 V1.3
 
-本目录保存校园资源预约系统任务4的增量版本。V1.3 基于 V1.2 的用户注册、登录和 `List<User>` 内存管理，新增 `FileUtil` 与 `user.txt` 文件持久化：程序启动时加载历史用户，注册成功后追加保存。用户实体和既有交互流程继续沿用上一版。
+本目录保存校园资源预约系统任务4的增量版本。V1.3 基于 V1.2 的用户注册、登录和 `List<entity.User>` 内存管理，新增 `utils.FileUtil` 与 `user.txt` 文件持久化：程序启动时加载历史用户，注册成功后追加保存。用户实体和既有交互流程继续沿用上一版。
 
 ## 功能
 
 - 提供登录、注册和退出菜单，操作后返回菜单。
-- 使用 `List<User>` 保存当前运行期的用户对象；用户字段为用户名、密码、角色和注册时间。
+- 使用 `List<entity.User>` 保存当前运行期的用户对象；用户字段为用户名、密码、角色和注册时间。
 - 注册时检查用户名非空、密码非空且长度至少为 6 位，并拒绝重复用户名。
 - 用户名首尾空格会被去除；密码按输入原值保存和比较。
 - 注册用户默认为 `student`，注册时间由 `LocalDateTime.now()` 记录。
@@ -20,12 +20,12 @@
 task04-v1.3
 ├─ README.md
 └─ src
-   ├─ FileUtil.java
+   ├─ utils.FileUtil.java
    ├─ SystemMain.java
-   └─ User.java
+   └─ entity.User.java
 ```
 
-`SystemMain` 负责控制台输入、菜单和用户流程；`User` 只承载用户数据；`FileUtil` 负责创建用户文件、解析用户记录和追加保存用户。
+`SystemMain` 负责控制台输入、菜单和用户流程；`entity.User` 只承载用户数据；`utils.FileUtil` 负责创建用户文件、解析用户记录和追加保存用户。
 
 ## 用户文件格式
 
@@ -50,7 +50,7 @@ alice|abc123|student|2026-10-17T14:30:00
 需要 JDK 8，无第三方依赖。在本目录打开终端执行：
 
 ```bash
-javac -encoding UTF-8 -d out src/SystemMain.java src/User.java src/FileUtil.java
+javac -encoding UTF-8 -d out src/SystemMain.java src/entity.User.java src/utils.FileUtil.java
 java -cp out SystemMain
 ```
 
@@ -73,8 +73,8 @@ java -cp out SystemMain
 
 ## 本次设计要点
 
-V1.2 的用户集合只存在于内存中。V1.3 启动时由 `FileUtil.loadUsers()` 读取文件并重建集合；注册时由 `FileUtil.saveUser()` 追加记录，保存成功后再加入内存集合并提示成功。文件读写集中在工具类中，`SystemMain` 不直接管理 IO 流，降低交互流程与持久化细节的耦合。
+V1.2 的用户集合只存在于内存中。V1.3 启动时由 `utils.FileUtil.loadUsers()` 读取文件并重建集合；注册时由 `utils.FileUtil.saveUser()` 追加记录，保存成功后再加入内存集合并提示成功。文件读写集中在工具类中，`SystemMain` 不直接管理 IO 流，降低交互流程与持久化细节的耦合。
 
-文件使用逐行文本格式，便于查看和调试；代价是需要保持字段顺序一致，并处理分隔符和格式错误。`FileUtil` 使用 try-with-resources 关闭字符流，避免资源未释放。
+文件使用逐行文本格式，便于查看和调试；代价是需要保持字段顺序一致，并处理分隔符和格式错误。`utils.FileUtil` 使用 try-with-resources 关闭字符流，避免资源未释放。
 
 本版本仍未引入三层架构、数据库或自定义异常体系。用户信息文件中的密码为明文，仅用于课程练习。
