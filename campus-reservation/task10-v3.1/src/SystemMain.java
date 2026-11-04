@@ -1,6 +1,10 @@
 import entity.*;
 import exception.*;
 import utils.FileUtil;
+import dao.UserDao;
+import dao.file.FileUserDao;
+import service.UserService;
+import ui.console.ConsoleUI;
 
 import java.util.*;
 import java.io.IOException;
@@ -11,88 +15,10 @@ import java.time.format.DateTimeParseException;
 
 public class SystemMain {
 
-    private static void validateUsername(String username){
-        if(username ==null || username.trim().isEmpty()){
-            throw new EmptyParameterException("用户名不能为空");
-        }
-
-        if(username.contains("|")){
-            throw new BusinessException("用户名不能包含分隔符 |");
-        }
-    }
-
-    private static void validatePassword(String password){
-        if(password == null || password.trim().isEmpty()){
-            throw new EmptyParameterException("密码不能为空");
-        }
-
-        if(password.length() < 6){
-            throw new BusinessException("密码长度至少为6位");
-        }
-
-        if(password.contains("|")){
-            throw new BusinessException("密码不能包含分隔符 |");
-        }
-    }
-
     private static boolean isValidResourceStatus(String status){
         return "AVAILABLE".equals(status)
                 || "OCCUPIED".equals(status)
                 || "DISABLED".equals(status);
-    }
-
-    private static Result<Void> register(Scanner scanner , List<User> users) throws IOException{
-
-        System.out.print("请输入用户名：");
-        String username = scanner.nextLine().trim();
-
-        System.out.print("请输入密码：");
-        String password = scanner.nextLine();
-
-        validateUsername(username);
-
-        validatePassword(password);
-
-        if(findUserByUsername(users,username) != null){
-            throw  new UserAlreadyExistsException("用户名已存在");
-        }
-
-        User newUser = new User(
-                username, password, "student", LocalDateTime.now()
-        );
-
-        FileUtil.saveUser(newUser);
-        users.add(newUser);
-        return Result.success("注册成功");
-
-    }
-
-    private static Result<User> login(Scanner scanner, List<User> users){
-        System.out.print("请输入用户名：");
-        String username = scanner.nextLine().trim();
-
-        System.out.print("请输入密码：");
-        String password = scanner.nextLine();
-
-        if (username == null || username.trim().isEmpty()) {
-            throw new EmptyParameterException("用户名不能为空");
-        }
-        if (password == null || password.trim().isEmpty()) {
-            throw new EmptyParameterException("密码不能为空");
-        }
-
-        Result<User> userResult = queryUserByUsername(users, username);
-        if (!userResult.isSuccess()) {
-            throw new UserNotFoundException("用户不存在，请先注册");
-        }
-        User user = userResult.getData();
-
-        if(!user.getPassword().equals(password)){
-            throw new PasswordIncorrectException("密码错误");
-        }
-
-        return Result.success("登录成功",user);
-
     }
 
     private static void ensureAdminExists(List<User> users) throws IOException{
@@ -106,26 +32,6 @@ public class SystemMain {
             FileUtil.saveUser(admin);
             users.add(admin);
         }
-    }
-
-    private static User findUserByUsername(List<User> users,String username){
-        for(User user : users){
-            if(user.getUsername().equals(username)){
-                return user;
-            }
-        }
-        return null;
-
-
-    }
-
-    private static Result<User> queryUserByUsername(
-            List<User> users, String username) {
-        User user = findUserByUsername(users, username);
-        if (user == null) {
-            return Result.fail("用户不存在");
-        }
-        return Result.success("查询成功", user);
     }
 
     private static Result<List<CampusResource>> queryAllResources(
@@ -998,16 +904,27 @@ public class SystemMain {
         List<CampusResource> resources;
         List<ReserveRecord> records;
 
+        UserService userService;
+        ConsoleUI consoleUI;
+
         try {
             users = FileUtil.loadUsers();
-            ensureAdminExists(users);
+
+            UserDao userDao = new FileUserDao();
+            userService = new UserService(userDao);
+            userService.ensureAdminExists();
+
             resources = FileUtil.loadResources();
             records = FileUtil.loadReserveRecords();
         } catch (IOException e) {
-            System.out.println("读取用户或资源数据失败，程序无法启动");
+            System.out.println("读取数据失败，程序无法启动");
             scanner.close();
             return;
         }
+
+        consoleUI = new ConsoleUI(scanner, userService);
+
+        consoleUI.start();
 
         while(true){
             System.out.println("  菜单  ");
@@ -1022,7 +939,7 @@ public class SystemMain {
                     case "1":
                         Result<User> loginResult;
                         try {
-                            loginResult = login(scanner, users);
+                            loginResult = consoleUI.handleLogin();
                         } catch (BusinessException e) {
                             loginResult = Result.fail(e.getMessage());
                         }
@@ -1047,15 +964,7 @@ public class SystemMain {
                         }
                         break;
                     case "2":
-                        Result<Void> registerResult;
-                        try{
-                            registerResult = register(scanner,users);
-                        }catch(BusinessException e){
-                            registerResult = Result.fail(e.getMessage());
-                        }catch (IOException e){
-                            registerResult = Result.fail("用户数据保存失败，请稍后重试");
-                        }
-                        System.out.println(registerResult.getMsg());
+                        consoleUI.handleRegister();
                         break;
                     case "0":
                         System.out.println("再见！");

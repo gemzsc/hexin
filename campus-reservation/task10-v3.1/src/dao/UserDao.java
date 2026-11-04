@@ -1,4 +1,13 @@
 package dao;
 
-public class UserDao {
+import entity.User;
+import java.io.IOException;
+import java.util.Optional;
+
+public interface UserDao {
+    Optional<User> findByUsername(String username);
+
+    void insert(User user) throws IOException;
+
+    boolean existsByRole(String role);
 }
