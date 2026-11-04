@@ -154,7 +154,6 @@ class ReserveRecordService {
 }
 class ResourceService {
 - resourceDao : ResourceDao
-- recordDao : ReserveRecordDao
 - resources : List<CampusResource>
 - records : List<ReserveRecord>
 + queryAllResources() : Result<List<CampusResource>>
@@ -219,7 +218,7 @@ ConsoleUI --> ResourceService
 ConsoleUI --> ReserveRecordService
 UserService --> UserDao
 ResourceService --> ResourceDao
-ResourceService --> ReserveRecordDao
+ResourceService ..> ReserveRecordDao : 构造时读取
 ReserveRecordService --> ResourceDao
 ReserveRecordService --> ReserveRecordDao
 FileUserDao ..> FileUtil
