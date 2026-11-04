@@ -43,20 +43,11 @@ public Result<List<CampusResource>> searchResourceByName(
 
         return Result.success("查询成功",matched);
     }
-public Result<CampusResource> queryResourceById(
-            String id) {
-        Optional<CampusResource> found = findResourceOptional( id);
-
-        if (found.isPresent()) {
-            return found
-                    .map(resource -> Result.success("查询成功", resource))
-                    .orElseGet(() -> Result.<CampusResource>fail(
-                            "未找到该 ID 对应的资源"));
-        }
-        return found
+    public Result<CampusResource> queryResourceById(String id) {
+        return findResourceOptional(id)
                 .map(resource -> Result.success("查询成功", resource))
                 .orElseGet(() -> Result.<CampusResource>fail(
-                    "未找到该 ID 对应的资源"));
+                        "未找到该 ID 对应的资源"));
     }
 private int findResourceIndexById(
             String id) {
