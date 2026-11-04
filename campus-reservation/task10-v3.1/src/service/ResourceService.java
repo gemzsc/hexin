@@ -4,15 +4,13 @@ import exception.*;
 import dao.*;
 import java.io.IOException;
 import java.util.*;
-import java.time.LocalDateTime;
 import java.util.stream.*;
 public class ResourceService {
 private final ResourceDao resourceDao;
- private final ReserveRecordDao recordDao;
- private final List<CampusResource> resources;
- private final List<ReserveRecord> records;
+private final List<CampusResource> resources;
+private final List<ReserveRecord> records;
 public ResourceService(ResourceDao resourceDao,ReserveRecordDao recordDao) {
- this.resourceDao=resourceDao; this.recordDao=recordDao;
+ this.resourceDao=resourceDao;
  this.resources=resourceDao.findAll(); this.records=recordDao.findAll();
  }
 public Result<List<CampusResource>> queryAllResources() { return Result.success("查询成功",resources); }
@@ -50,9 +48,15 @@ public Result<CampusResource> queryResourceById(
         Optional<CampusResource> found = findResourceOptional( id);
 
         if (found.isPresent()) {
-            return Result.success("查询成功", found.get());
+            return found
+                    .map(resource -> Result.success("查询成功", resource))
+                    .orElseGet(() -> Result.<CampusResource>fail(
+                            "未找到该 ID 对应的资源"));
         }
-        return Result.fail("未找到该 ID 对应的资源");
+        return found
+                .map(resource -> Result.success("查询成功", resource))
+                .orElseGet(() -> Result.<CampusResource>fail(
+                    "未找到该 ID 对应的资源"));
     }
 private int findResourceIndexById(
             String id) {
@@ -133,7 +137,7 @@ public Result<Void> updateResource(
         }
 
         boolean hasPassedReserve = records.stream()
-                .filter(r -> r != null)
+                .filter(Objects::nonNull)
                 .anyMatch(r -> oldResource.getId().equals(r.getResourceId())
                         && r.getStatus() == ReserveStatus.PASS);
 
@@ -178,7 +182,7 @@ public Result<Void> deleteResource(
         CampusResource target = requireResourceById( id);
 
         boolean hasPassedReserve = records.stream()
-                .filter(r -> r != null)
+                .filter(Objects::nonNull)
                 .anyMatch(r -> id.equals(r.getResourceId())
                         && r.getStatus() == ReserveStatus.PASS);
 

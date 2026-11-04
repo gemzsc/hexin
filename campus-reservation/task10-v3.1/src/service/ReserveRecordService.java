@@ -40,7 +40,7 @@ public Result<List<ReserveRecord>> queryReservesByCondition(
         requireAdmin(currentUser);
 
         List<ReserveRecord> matched = records.stream()
-                .filter(r -> r != null)
+                .filter(Objects::nonNull)
                 .filter(r -> resourceId == null || resourceId.trim().isEmpty()
                         || resourceId.trim().equals(r.getResourceId()))
                 .filter(r -> applicantUsername == null
@@ -91,7 +91,7 @@ public Result<ReserveRecord> submitReserve(
         }
 
         boolean conflict = records.stream()
-                .filter(record -> record != null)
+                .filter(Objects::nonNull)
                 .filter(record -> resourceId.equals(record.getResourceId()))
                 .filter(record -> record.getStatus() == ReserveStatus.PASS)
                 .anyMatch(record ->
@@ -254,14 +254,13 @@ public Result<Void> cancelReserve(
         updatedRecords.set(updatedRecords.indexOf(oldRecord), cancelledRecord);
 
         // PENDING 取消只改预约记录；PASS 取消还要释放资源
-        CampusResource releasedResource = null;
         List<CampusResource> updatedResources = null;
 
         if (oldStatus == ReserveStatus.PASS) {
             CampusResource oldResource =
                     requireResourceById( oldRecord.getResourceId());
 
-            releasedResource = new CampusResource(
+            CampusResource releasedResource = new CampusResource(
                     oldResource.getId(),
                     oldResource.getName(),
                     oldResource.getType(),
