@@ -7,7 +7,7 @@ import java.util.Optional;
 public interface UserDao {
     Optional<User> findByUsername(String username);
 
-    void insert(User user) throws IOException;
+    void insert(User user);
 
     boolean existsByRole(String role);
 }

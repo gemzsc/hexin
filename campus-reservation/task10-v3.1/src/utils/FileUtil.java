@@ -13,6 +13,16 @@ import java.util.*;
 
 
 public class FileUtil {
+    private static java.util.function.Consumer<String> warningSink = message -> { };
+
+    public static void setWarningSink(java.util.function.Consumer<String> sink) {
+        warningSink = java.util.Objects.requireNonNull(sink);
+    }
+
+    private static void warn(String message) {
+        warningSink.accept(message);
+    }
+
     private FileUtil(){
     }
     //用户文件格式： username|password|role|registerTime
@@ -24,14 +34,14 @@ public class FileUtil {
     public static void ensureUserFileExists() throws IOException{
         if (!Files.exists(USER_FILE)){
             Files.createFile(USER_FILE);
-            System.out.println("已创建用户数据文件");
+            warn("已创建用户数据文件");
         }
     }
 
     public static void ensureResourceFileExists() throws IOException{
         if (!Files.exists(RESOURCE_FILE)){
             Files.createFile(RESOURCE_FILE);
-            System.out.println("已创建资源数据文件");
+            warn("已创建资源数据文件");
         }
     }
 
@@ -81,14 +91,14 @@ public class FileUtil {
                 String[] fields = line.split("\\|",-1);
 
                 if(fields.length != 4){
-                    System.out.println("跳过格式错误的用户数据：" + line);
+                    warn("跳过格式错误的用户数据：" + line);
                     continue;           //单条记录格式错误时跳过，继续加载其余记录
                 }
 
                 if (fields[0].trim().isEmpty()
                         || fields[1].trim().isEmpty()
                         || fields[2].trim().isEmpty()) {
-                    System.out.println("跳过字段为空的用户数据：" + line);
+                    warn("跳过字段为空的用户数据：" + line);
                     continue;
                 }
 
@@ -102,7 +112,7 @@ public class FileUtil {
                     );
                     users.add(user);
                 }catch (java.time.format.DateTimeParseException e){
-                    System.out.println("跳过注册时间格式错误的数据：" + line);
+                    warn("跳过注册时间格式错误的数据：" + line);
                 }
             }
         }
@@ -159,7 +169,7 @@ public class FileUtil {
                 String[] fields = line.split("\\|", -1);
 
                 if (fields.length != 6) {
-                    System.out.println("跳过格式错误的资源数据：" + line);
+                    warn("跳过格式错误的资源数据：" + line);
                     continue;
                 }
 
@@ -168,7 +178,7 @@ public class FileUtil {
                         || fields[2].trim().isEmpty()
                         || fields[3].trim().isEmpty()
                         || fields[4].trim().isEmpty()) {
-                    System.out.println("跳过必要字段为空的资源数据：" + line);
+                    warn("跳过必要字段为空的资源数据：" + line);
                     continue;
                 }
                 String status = fields[3];
@@ -178,13 +188,13 @@ public class FileUtil {
                                 || "DISABLED".equals(status);
 
                 if (!validStatus) {
-                    System.out.println("跳过状态不合法的资源数据：" + line);
+                    warn("跳过状态不合法的资源数据：" + line);
                     continue;
                 }
 
                 String id = fields[0];
                 if (resourceIds.contains(id)) {
-                    System.out.println("跳过资源 ID 重复的数据：" + line);
+                    warn("跳过资源 ID 重复的数据：" + line);
                     continue;
                 }
                 resourceIds.add(id);
@@ -249,7 +259,7 @@ public class FileUtil {
                 String[] fields = line.split("\\|", -1);
 
                 if (fields.length != 8) {
-                    System.out.println("跳过格式错误的预约数据：" + line);
+                    warn("跳过格式错误的预约数据：" + line);
                     continue;
                 }
 
@@ -258,12 +268,12 @@ public class FileUtil {
                     if (fields[0].trim().isEmpty()
                             || fields[1].trim().isEmpty()
                             || fields[2].trim().isEmpty()) {
-                        System.out.println("跳过必要字段为空的预约数据：" + line);
+                        warn("跳过必要字段为空的预约数据：" + line);
                         continue;
                     }
 
                     if (recordIds.contains(fields[0])) {
-                        System.out.println("跳过预约记录 ID 重复的数据：" + line);
+                        warn("跳过预约记录 ID 重复的数据：" + line);
                         continue;
                     }
 
@@ -282,7 +292,7 @@ public class FileUtil {
                     recordIds.add(fields[0]);
                 } catch (RuntimeException e) {
                     // 包含时间格式错误、状态枚举值非法等情况
-                    System.out.println("跳过无法解析的预约数据：" + line);
+                    warn("跳过无法解析的预约数据：" + line);
                 }
             }
         }

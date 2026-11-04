@@ -1,0 +1,255 @@
+@startuml
+title Campus Reservation V3.1 three-layer architecture
+skinparam classAttributeIconSize 0
+hide empty members
+package "dao.file" {
+class FileReserveRecordDao {
+- values : List<ReserveRecord>
++ findAll() : List<ReserveRecord>
++ saveAll(List<ReserveRecord> updated) : void
+}
+class FileResourceDao {
+- values : List<CampusResource>
++ findAll() : List<CampusResource>
++ saveAll(List<CampusResource> updated) : void
+}
+class FileUserDao {
+- users : List<User>
++ findByUsername(String username) : Optional<User>
++ insert(User user) : void
++ existsByRole(String role) : boolean
+}
+}
+package "dao" {
+interface ReserveRecordDao {
++ findAll(): List<ReserveRecord>
++ saveAll(values: List<ReserveRecord>): void
+}
+interface ResourceDao {
++ findAll(): List<CampusResource>
++ saveAll(values: List<CampusResource>): void
+}
+interface UserDao {
++ findByUsername(username: String): Optional<User>
++ insert(user: User): void
++ existsByRole(role: String): boolean
+}
+}
+package "entity" {
+class CampusResource {
+- id : String
+- name : String
+- type : String
+- status : String
+- location : String
+- description : String
++ getId() : String
++ setId(String id) : void
++ getName() : String
++ setName(String name) : void
++ getType() : String
++ setType(String type) : void
++ getStatus() : String
++ setStatus(String status) : void
++ getLocation() : String
++ setLocation(String location) : void
++ getDescription() : String
++ setDescription(String description) : void
++ toString() : String
+}
+class ReserveRecord {
+- recordId : String
+- resourceId : String
+- applicantUsername : String
+- applyTime : LocalDateTime
+- reserveStartTime : LocalDateTime
+- reserveEndTime : LocalDateTime
+- status : ReserveStatus
+- remark : String
++ getRecordId() : String
++ setRecordId(String recordId) : void
++ getResourceId() : String
++ setResourceId(String resourceId) : void
++ getApplicantUsername() : String
++ setApplicantUsername(String applicantUsername) : void
++ getApplyTime() : LocalDateTime
++ setApplyTime(LocalDateTime applyTime) : void
++ getReserveStartTime() : LocalDateTime
++ setReserveStartTime(LocalDateTime reserveStartTime) : void
++ getReserveEndTime() : LocalDateTime
++ setReserveEndTime(LocalDateTime reserveEndTime) : void
++ getStatus() : ReserveStatus
++ setStatus(ReserveStatus status) : void
++ getRemark() : String
++ setRemark(String remark) : void
++ toString() : String
+}
+enum ReserveStatus {
+PENDING
+PASS
+REJECT
+CANCEL
+}
+class Result {
+- success : boolean
+- msg : String
+- data : T
++ {static} success(String msg,T data) : <T> Result<T>
++ {static} fail(String msg) : <T> Result<T>
++ {static} success(T data) : <T> Result<T>
++ {static} success(String msg) : <T> Result<T>
++ isSuccess() : boolean
++ setSuccess(boolean success) : void
++ getMsg() : String
++ setMsg(String msg) : void
++ getData() : T
++ setData(T data) : void
++ toString() : String
+}
+class User {
+- username : String
+- password : String
+- role : String
+- registerTime : LocalDateTime
++ getUsername() : String
++ setUsername(String username) : void
++ getPassword() : String
++ setPassword(String password) : void
++ getRole() : String
++ setRole(String role) : void
++ getRegisterTime() : LocalDateTime
++ setRegisterTime(LocalDateTime registerTime) : void
++ toString() : String
+}
+}
+package "exception" {
+class BusinessException {
+}
+class DataAccessException {
+}
+class EmptyParameterException {
+}
+class PasswordIncorrectException {
+}
+class UserAlreadyExistsException {
+}
+class UserNotFoundException {
+}
+}
+package "service" {
+class ReserveRecordService {
+- resourceDao : ResourceDao
+- recordDao : ReserveRecordDao
+- resources : List<CampusResource>
+- records : List<ReserveRecord>
++ queryMyReserve(User currentUser) : Result<List<ReserveRecord>>
++ queryAllReserves(User currentUser) : Result<List<ReserveRecord>>
++ queryReservesByCondition(User currentUser, String resourceId, String applicantUsername, ReserveStatus statusFilter) : Result<List<ReserveRecord>>
++ submitReserve(User currentUser, String resourceId, LocalDateTime start, LocalDateTime end, String remark) : Result<ReserveRecord>
++ approveReserve(User currentUser, String recordId) : Result<Void>
++ rejectReserve(User currentUser, String recordId) : Result<Void>
++ cancelReserve(User currentUser, String recordId) : Result<Void>
+- requireAdmin(User currentUser) : void
+- requireStudent(User currentUser) : void
+}
+class ResourceService {
+- resourceDao : ResourceDao
+- recordDao : ReserveRecordDao
+- resources : List<CampusResource>
+- records : List<ReserveRecord>
++ queryAllResources() : Result<List<CampusResource>>
++ queryAvailableResources() : Result<List<CampusResource>>
++ searchResourceByName(String keyword) : Result<List<CampusResource>>
++ queryResourceById(String id) : Result<CampusResource>
++ addResource(User currentUser,String name,String type,String location,String description) : Result<CampusResource>
++ updateResource(User currentUser,String id,String name,String type,String location,String status,String description) : Result<Void>
++ deleteResource(User currentUser,String id) : Result<Void>
+- requireAdmin(User currentUser) : void
+}
+class UserService {
+- userDao : UserDao
++ register(String username, String password) : Result<Void>
+- validateUsername(String username) : void
+- validatePassword(String password) : void
++ login(String username, String password) : Result<User>
++ ensureAdminExists() : void
+}
+}
+package "bootstrap" {
+class SystemMain {
++ {static} main(String[] args) : void
+}
+}
+package "ui.console" {
+class ConsoleUI {
+- scanner : Scanner
+- userService : UserService
+- resourceService : ResourceService
+- reserveService : ReserveRecordService
++ {static} displayWarning(String message) : void
++ handleRegister() : void
++ handleLogin() : Result<User>
++ showAllResources() : void
++ start() : void
+}
+}
+package "utils" {
+class FileUtil {
+- {static} warningSink : java.util.function.Consumer<String>
+- {static} USER_FILE : Path
+- {static} RESOURCE_FILE : Path
+- {static} RESERVE_FILE : Path
++ {static} setWarningSink(java.util.function.Consumer<String> sink) : void
++ {static} ensureUserFileExists() : void
++ {static} ensureResourceFileExists() : void
++ {static} loadUsers() : List<User>
++ {static} saveUser(User user) : void
++ {static} loadResources() : List<CampusResource>
++ {static} saveResources(List<CampusResource> resources) : void
++ {static} ensureReserveFileExists() : void
++ {static} loadReserveRecords() : List<ReserveRecord>
++ {static} saveReserveRecords(List<ReserveRecord> records) : void
+}
+}
+FileUserDao ..|> UserDao
+FileResourceDao ..|> ResourceDao
+FileReserveRecordDao ..|> ReserveRecordDao
+ConsoleUI --> UserService
+ConsoleUI --> ResourceService
+ConsoleUI --> ReserveRecordService
+UserService --> UserDao
+ResourceService --> ResourceDao
+ResourceService --> ReserveRecordDao
+ReserveRecordService --> ResourceDao
+ReserveRecordService --> ReserveRecordDao
+FileUserDao ..> FileUtil
+FileResourceDao ..> FileUtil
+FileReserveRecordDao ..> FileUtil
+UserDao ..> User
+ResourceDao ..> CampusResource
+ReserveRecordDao ..> ReserveRecord
+ReserveRecord --> ReserveStatus
+UserService ..> Result
+ResourceService ..> Result
+ReserveRecordService ..> Result
+ConsoleUI ..> Result
+SystemMain ..> ConsoleUI
+SystemMain ..> FileUserDao
+SystemMain ..> FileResourceDao
+SystemMain ..> FileReserveRecordDao
+SystemMain ..> UserService
+SystemMain ..> ResourceService
+SystemMain ..> ReserveRecordService
+UserAlreadyExistsException --|> BusinessException
+UserNotFoundException --|> BusinessException
+PasswordIncorrectException --|> BusinessException
+EmptyParameterException --|> BusinessException
+note right of ReserveRecord
+resourceId / applicantUsername are identifiers.
+They do not imply object composition.
+end note
+note bottom of FileUtil
+Warnings use a Consumer<String> supplied by bootstrap.
+ConsoleUI performs the actual display.
+end note
+@enduml

@@ -5,7 +5,6 @@ import entity.Result;
 import entity.User;
 import exception.*;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 
 public class UserService {
@@ -15,7 +14,7 @@ public class UserService {
         this.userDao = userDao;
     }
 
-    public Result<Void> register(String username, String password) throws IOException {
+    public Result<Void> register(String username, String password){
         validateUsername(username);
         validatePassword(password);
 
@@ -69,7 +68,7 @@ public class UserService {
         return Result.success("登录成功", user);
     }
 
-    public void ensureAdminExists() throws IOException {
+    public void ensureAdminExists(){
         if (userDao.existsByRole("admin")) {
             return;
         }
