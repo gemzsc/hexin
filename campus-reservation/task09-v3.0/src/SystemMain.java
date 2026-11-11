@@ -1,6 +1,5 @@
 import exception.*;
 
-import java.io.File;
 import java.util.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -73,10 +72,10 @@ public class SystemMain {
         System.out.print("请输入密码：");
         String password = scanner.nextLine();
 
-        if (username == null || username.trim().isEmpty()) {
+        if (username.isEmpty()) {
             throw new EmptyParameterException("用户名不能为空");
         }
-        if (password == null || password.trim().isEmpty()) {
+        if (password.trim().isEmpty()) {
             throw new EmptyParameterException("密码不能为空");
         }
 
@@ -929,14 +928,13 @@ public class SystemMain {
         updatedRecords.set(updatedRecords.indexOf(oldRecord), cancelledRecord);
 
         // PENDING 取消只改预约记录；PASS 取消还要释放资源
-        CampusResource releasedResource = null;
         List<CampusResource> updatedResources = null;
 
         if (oldStatus == ReserveStatus.PASS) {
             CampusResource oldResource =
                     requireResourceById(resources, oldRecord.getResourceId());
 
-            releasedResource = new CampusResource(
+            CampusResource releasedResource = new CampusResource(
                     oldResource.getId(),
                     oldResource.getName(),
                     oldResource.getType(),

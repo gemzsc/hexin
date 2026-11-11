@@ -10,19 +10,19 @@ public class Result<T> {
     }
 
     public static <T> Result<T> success(String msg,T data){
-        return new Result<T>(true,msg,data);
+        return new Result<>(true,msg,data);
     }
 
     public static <T> Result<T> fail(String msg){
-        return new Result<T>(false,msg,null);
+        return new Result<>(false,msg,null);
     }
 
     public static <T> Result<T> success(T data){
-        return new Result<T>(true,"操作成功",data);
+        return new Result<>(true,"操作成功",data);
     }
 
     public static <T> Result<T> success(String msg){
-        return new Result<T>(true,msg,null);
+        return new Result<>(true,msg,null);
     }
 
     public boolean isSuccess(){
